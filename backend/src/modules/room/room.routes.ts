@@ -75,4 +75,14 @@ export async function roomRoutes(
 
     return reply.status(200).send(toPublicRoom(room));
   });
+
+  // join an existing room
+  app.post('/rooms/:code/join', async (request, reply) => {
+    const { code } = parseInput(roomParamsSchema, request.params);
+    const { name } = parseInput(nameBodySchema, request.body);
+
+    const result = await roomService.join(code, name);
+
+    return reply.status(200).send(toJoinResponse(result));
+  });
 }
