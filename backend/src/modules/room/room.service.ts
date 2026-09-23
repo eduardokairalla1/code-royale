@@ -5,10 +5,12 @@
 // --- IMPORTS ---
 import { generateRoomCode } from '../../shared/ids.js';
 import { RoomCodeGenerationError } from './room.errors.js';
+import { RoomNotFoundError } from './room.errors.js';
 import type { RoomStore } from './room.store.js';
 import type { Player } from './room.types.js';
 import type { Room } from './room.types.js';
 import { createPlayer } from './room.utils.js';
+import { normalizeRoomCode } from './room.utils.js';
 
 // --- GLOBALS ---
 const MAX_ROOM_CODE_ATTEMPTS = 10;
@@ -56,6 +58,27 @@ export class RoomService {
     await this.store.save(room);
 
     return { room, player: host };
+  }
+
+  /**
+   * Find a room by its code.
+   *
+   * @param {string} code The room code, in any case.
+   *
+   * @returns {Promise<Room>} The room.
+   *
+   * @throws {RoomNotFoundError} When the room does not exist.
+   */
+  async getOrThrow(code: string): Promise<Room> {
+
+    const normalizedCode = normalizeRoomCode(code);
+    const room = await this.store.get(normalizedCode);
+
+    if (!room) {
+      throw new RoomNotFoundError({ code: normalizedCode });
+    }
+
+    return room;
   }
 
   /**

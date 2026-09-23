@@ -7,6 +7,15 @@ import { AppError } from '../../shared/errors/app-error.js';
 
 // --- CODE ---
 /**
+ * Raised when no room matches the given code.
+ */
+export class RoomNotFoundError extends AppError {
+  static override readonly MESSAGE = 'Room not found!';
+  static override readonly STATUS_CODE = 404;
+  static override readonly LOG_LEVEL = 'warn';
+}
+
+/**
  * Raised when no free room code was found after several attempts.
  */
 export class RoomCodeGenerationError extends AppError {

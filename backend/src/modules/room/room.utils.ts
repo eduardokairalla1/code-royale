@@ -47,3 +47,15 @@ export function createPlayer(name: string): Player {
     joinedAt: Date.now(),
   };
 }
+
+/**
+ * Normalize a room code, so "x7k2p" typed by hand still matches.
+ *
+ * @param {string} code The raw room code.
+ *
+ * @returns {string} The trimmed, uppercase code.
+ */
+export function normalizeRoomCode(code: string): string {
+
+  return code.trim().toUpperCase();
+}
