@@ -5,6 +5,8 @@
 // --- IMPORTS ---
 import { generateRoomCode } from '../../shared/ids.js';
 import { RoomCodeGenerationError } from './room.errors.js';
+import { RoomFullError } from './room.errors.js';
+import { RoomInGameError } from './room.errors.js';
 import { RoomNotFoundError } from './room.errors.js';
 import type { RoomStore } from './room.store.js';
 import type { Player } from './room.types.js';
@@ -13,6 +15,7 @@ import { createPlayer } from './room.utils.js';
 import { normalizeRoomCode } from './room.utils.js';
 
 // --- GLOBALS ---
+const MAX_PLAYERS_PER_ROOM = 20;
 const MAX_ROOM_CODE_ATTEMPTS = 10;
 
 // --- CODE ---
@@ -58,6 +61,44 @@ export class RoomService {
     await this.store.save(room);
 
     return { room, player: host };
+  }
+
+  /**
+   * Add a new player to an existing room.
+   *
+   * @param {string} code The room code.
+   * @param {string} name The player's name.
+   *
+   * @returns {Promise<JoinResult>} The room and the new player.
+   *
+   * @throws {RoomNotFoundError} When the room does not exist.
+   * @throws {RoomInGameError} When a game is running.
+   * @throws {RoomFullError} When the room reached the player limit.
+   */
+  async join(code: string, name: string): Promise<JoinResult> {
+
+    const room = await this.getOrThrow(code);
+
+    // no joining mid game
+    if (room.status === 'PLAYING') {
+      throw new RoomInGameError({ code: room.code });
+    }
+
+    // room reached the player limit
+    if (room.players.size >= MAX_PLAYERS_PER_ROOM) {
+      throw new RoomFullError({
+        code: room.code,
+        players: room.players.size,
+      });
+    }
+
+    const player = createPlayer(name);
+
+    room.players.set(player.id, player);
+
+    await this.store.save(room);
+
+    return { room, player };
   }
 
   /**
