@@ -28,3 +28,22 @@ export interface Room {
   players: Map<string, Player>;
   createdAt: number;
 }
+
+/**
+ * Player as sent to clients: no token.
+ */
+export interface PublicPlayer {
+  id: string;
+  name: string;
+  isHost: boolean;
+}
+
+/**
+ * Room as sent to clients: no tokens.
+ */
+export interface PublicRoom {
+  code: string;
+  status: RoomStatus;
+  hostId: string;
+  players: PublicPlayer[];
+}

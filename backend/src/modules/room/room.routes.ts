@@ -1,0 +1,65 @@
+/**
+ * Room http routes.
+ */
+
+// --- IMPORTS ---
+import { parseInput } from '../../shared/validation.js';
+import type { JoinResult } from './room.service.js';
+import type { RoomService } from './room.service.js';
+import { toPublicRoom } from './room.utils.js';
+import type { FastifyInstance } from 'fastify';
+import { z } from 'zod';
+
+// --- GLOBALS ---
+const nameBodySchema = z.object({
+  name: z.string().trim().min(1).max(20),
+});
+
+// --- CODE ---
+/**
+ * Options received by the room routes plugin.
+ */
+interface RoomRoutesOptions {
+  roomService: RoomService;
+}
+
+/**
+ * Build the join response: the token only goes to the player themself.
+ *
+ * @param {JoinResult} result The room and the player that entered it.
+ *
+ * @returns The public room plus the player's id and token.
+ */
+function toJoinResponse({ room, player }: JoinResult) {
+
+  return {
+    room: toPublicRoom(room),
+    player: {
+      id: player.id,
+      token: player.token,
+    },
+  };
+}
+
+/**
+ * Register the room routes.
+ *
+ * @param {FastifyInstance} app The Fastify instance.
+ * @param {RoomRoutesOptions} options The plugin options.
+ *
+ * @returns {Promise<void>}
+ */
+export async function roomRoutes(
+  app: FastifyInstance,
+  { roomService }: RoomRoutesOptions,
+): Promise<void> {
+
+  // create a room, the caller becomes the host
+  app.post('/rooms', async (request, reply) => {
+    const { name } = parseInput(nameBodySchema, request.body);
+
+    const result = await roomService.create(name);
+
+    return reply.status(201).send(toJoinResponse(result));
+  });
+}

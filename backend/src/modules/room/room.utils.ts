@@ -6,8 +6,31 @@
 import { generatePlayerId } from '../../shared/ids.js';
 import { generateToken } from '../../shared/ids.js';
 import type { Player } from './room.types.js';
+import type { PublicRoom } from './room.types.js';
+import type { Room } from './room.types.js';
 
 // --- CODE ---
+/**
+ * Build the version of a room that is safe to send to clients.
+ *
+ * @param {Room} room The room.
+ *
+ * @returns {PublicRoom} The room without tokens.
+ */
+export function toPublicRoom(room: Room): PublicRoom {
+
+  return {
+    code: room.code,
+    status: room.status,
+    hostId: room.hostId,
+    players: [...room.players.values()].map((player) => ({
+      id: player.id,
+      name: player.name,
+      isHost: player.id === room.hostId,
+    })),
+  };
+}
+
 /**
  * Create a new player with a fresh id and token.
  *
