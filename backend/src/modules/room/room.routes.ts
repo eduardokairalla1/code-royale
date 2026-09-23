@@ -15,6 +15,10 @@ const nameBodySchema = z.object({
   name: z.string().trim().min(1).max(20),
 });
 
+const roomParamsSchema = z.object({
+  code: z.string().trim().min(1).max(10),
+});
+
 // --- CODE ---
 /**
  * Options received by the room routes plugin.
@@ -61,5 +65,14 @@ export async function roomRoutes(
     const result = await roomService.create(name);
 
     return reply.status(201).send(toJoinResponse(result));
+  });
+
+  // look up a room, e.g. before showing the join screen
+  app.get('/rooms/:code', async (request, reply) => {
+    const { code } = parseInput(roomParamsSchema, request.params);
+
+    const room = await roomService.getOrThrow(code);
+
+    return reply.status(200).send(toPublicRoom(room));
   });
 }
