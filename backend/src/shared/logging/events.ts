@@ -29,6 +29,8 @@ export const Event = {
   PlayerLeft: 'player_left',
   HostChanged: 'host_changed',
   RoomDeleted: 'room_deleted',
+
+  TimerFailed: 'timer_failed',
 } as const;
 
 // --- CODE ---

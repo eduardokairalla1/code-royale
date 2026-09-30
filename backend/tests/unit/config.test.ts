@@ -40,6 +40,7 @@ describe('config', () => {
     expect(config).toMatchObject({
       logLevel: 'debug',
       corsOrigins: ['http://localhost:5173'],
+      reconnectGraceMs: 10_000,
       maxPlayersPerRoom: 20,
       maxRooms: 1000,
     });
@@ -51,6 +52,14 @@ describe('config', () => {
     });
 
     expect(config.corsOrigins).toEqual(['https://a.com', 'https://b.br']);
+  });
+
+  it('turns seconds into milliseconds', async () => {
+    const config = await loadConfig({
+      RECONNECT_GRACE_SECONDS: '30',
+    });
+
+    expect(config.reconnectGraceMs).toBe(30_000);
   });
 
   it.each([

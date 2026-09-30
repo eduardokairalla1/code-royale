@@ -8,6 +8,7 @@ import { createRoom } from '../helpers/test-server.js';
 import { joinRoom } from '../helpers/test-server.js';
 import { sleep } from '../helpers/test-server.js';
 import { startServer } from '../helpers/test-server.js';
+import { TEST_TIMINGS } from '../helpers/test-server.js';
 import { TestClient } from '../helpers/test-server.js';
 import { describe } from 'vitest';
 import { expect } from 'vitest';
@@ -83,6 +84,39 @@ describe('reconnecting', () => {
 
     expect(oldTab.disconnectReason).toBe('io server disconnect');
     expect(roster(await newTab.waitFor(() => true))).toBe('Ana*+');
+  });
+
+  it('keeps a player who comes back within the grace period', async () => {
+    const server = await startServer();
+    const ana = await createRoom(server, 'Ana');
+    const bob = await joinRoom(server, ana.code, 'Bob');
+    const anaClient = await TestClient.join(server, ana);
+    const bobClient = await TestClient.join(server, bob);
+
+    bobClient.socket.disconnect();
+    await anaClient.waitFor((room) => roster(room) === 'Ana*+,Bob-');
+
+    await TestClient.join(server, bob);
+    anaClient.clear();
+    await sleep(TEST_TIMINGS.reconnectGraceMs * 2);
+
+    expect(roster(anaClient.state ?? await anaClient.waitFor(() => true)))
+      .toBe('Ana*+,Bob+');
+  });
+
+  it('removes a player after the grace period', async () => {
+    const server = await startServer();
+    const ana = await createRoom(server, 'Ana');
+    const bob = await joinRoom(server, ana.code, 'Bob');
+    const anaClient = await TestClient.join(server, ana);
+    const bobClient = await TestClient.join(server, bob);
+
+    bobClient.socket.disconnect();
+    await anaClient.waitFor((room) => roster(room) === 'Ana*+');
+
+    const again = await TestClient.join(server, bob);
+
+    expect(again.connectError?.error).toBe('invalid_player_token_error');
   });
 });
 

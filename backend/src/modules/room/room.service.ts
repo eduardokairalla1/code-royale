@@ -7,6 +7,7 @@ import { generateRoomCode } from '../../shared/ids.js';
 import { tokensMatch } from '../../shared/ids.js';
 import { Event } from '../../shared/logging/events.js';
 import { log } from '../../shared/logging/events.js';
+import { TimerRegistry } from '../../shared/timers.js';
 import { InvalidPlayerTokenError } from './room.errors.js';
 import { RoomCodeGenerationError } from './room.errors.js';
 import { RoomFullError } from './room.errors.js';
@@ -24,8 +25,8 @@ import type { FastifyBaseLogger } from 'fastify';
 // --- GLOBALS ---
 const MAX_ROOM_CODE_ATTEMPTS = 10;
 
-// why a player left: on their own
-type LeaveReason = 'leave';
+// why a player left: on their own, or never came back in time
+type LeaveReason = 'leave' | 'grace_expired';
 
 // why a room was dropped: its last player left
 type DeleteReason = 'empty';
@@ -43,6 +44,8 @@ export interface JoinResult {
  * Settings and dependencies of the room service.
  */
 export interface RoomServiceOptions {
+  // how long a disconnected player has to come back before being removed
+  reconnectGraceMs: number;
   maxPlayersPerRoom: number;
   // rooms held at once, so creating them cannot eat the memory
   maxRooms: number;
@@ -60,6 +63,9 @@ export type RoomChangeListener = (room: Room) => void;
 export class RoomService {
   private readonly listeners: RoomChangeListener[] = [];
 
+  // pending removals, by player id
+  private readonly playerTimers: TimerRegistry;
+
   /**
    * Create the service.
    *
@@ -69,7 +75,9 @@ export class RoomService {
   constructor(
     private readonly store: RoomStore,
     private readonly options: RoomServiceOptions,
-  ) {}
+  ) {
+    this.playerTimers = new TimerRegistry(options.logger, 'player_grace');
+  }
 
   /**
    * Subscribe to room state changes.
@@ -153,6 +161,7 @@ export class RoomService {
 
     room.players.set(player.id, player);
 
+    // the new player must connect within the grace period
     await this.update(room);
 
     log(this.options.logger, 'info', Event.PlayerJoined, {
@@ -187,7 +196,7 @@ export class RoomService {
   }
 
   /**
-   * Save a changed room and notify listeners.
+   * Save a changed room, re-apply the cleanup rules and notify listeners.
    *
    * @param {Room} room The changed room.
    *
@@ -197,6 +206,7 @@ export class RoomService {
 
     await this.store.save(room);
 
+    this.scheduleCleanup(room);
     this.notify(room);
   }
 
@@ -322,6 +332,7 @@ export class RoomService {
       return;
     }
 
+    this.playerTimers.clear(playerId);
     room.players.delete(playerId);
 
     log(this.options.logger, 'info', Event.PlayerLeft, {
@@ -366,7 +377,7 @@ export class RoomService {
   }
 
   /**
-   * Delete a room.
+   * Delete a room and cancel all of its pending timers.
    *
    * @param {Room} room The room to delete.
    * @param {DeleteReason} reason Why it goes.
@@ -375,6 +386,10 @@ export class RoomService {
    */
   private async deleteRoom(room: Room, reason: DeleteReason): Promise<void> {
 
+    for (const playerId of room.players.keys()) {
+      this.playerTimers.clear(playerId);
+    }
+
     await this.store.delete(room.code);
 
     log(this.options.logger, 'info', Event.RoomDeleted, {
@@ -382,6 +397,33 @@ export class RoomService {
       reason,
       age_ms: Date.now() - room.createdAt,
     });
+  }
+
+  /**
+   * Drop disconnected players who do not come back in time.
+   *
+   * @param {Room} room The room that just changed.
+   *
+   * @returns {void}
+   */
+  private scheduleCleanup(room: Room): void {
+
+    const players = [...room.players.values()];
+
+    for (const player of players) {
+
+      // connected: nobody to remove
+      if (player.socketId !== null) {
+        this.playerTimers.clear(player.id);
+        continue;
+      }
+
+      this.playerTimers.start(
+        player.id,
+        this.options.reconnectGraceMs,
+        () => this.removePlayer(room.code, player.id, 'grace_expired'),
+      );
+    }
   }
 
   /**

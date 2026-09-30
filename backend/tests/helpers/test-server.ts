@@ -14,6 +14,11 @@ import type { Socket } from 'socket.io-client';
 import { afterEach } from 'vitest';
 
 // --- GLOBALS ---
+// short timers, so tests do not wait for the production ones
+export const TEST_TIMINGS = {
+  reconnectGraceMs: 300,
+};
+
 // everything opened by a test, closed after it
 const openServers: TestServer[] = [];
 const openClients: TestClient[] = [];
@@ -49,6 +54,7 @@ export async function startServer(
 
   const app = buildApp({
     logger: false,
+    reconnectGraceMs: TEST_TIMINGS.reconnectGraceMs,
     ...options,
   });
 
