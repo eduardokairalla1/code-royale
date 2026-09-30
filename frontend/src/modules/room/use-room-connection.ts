@@ -42,6 +42,8 @@ export interface RoomConnection {
   room: Room | null;
   // backend slug of why the connection was refused
   error: string | null;
+  // server clock minus local clock, in ms
+  clockOffset: number;
   send: (event: string, payload?: unknown) => Promise<unknown>;
   leave: () => Promise<void>;
   reconnect: () => void;
@@ -66,6 +68,7 @@ export function useRoomConnection(
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
   const [room, setRoom] = useState<Room | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [clockOffset, setClockOffset] = useState(0);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
@@ -88,6 +91,10 @@ export function useRoomConnection(
     // every change of the room lands here
     socket.on('room:state', (next: Room) => {
       setRoom(next);
+
+      if (next.round) {
+        setClockOffset(next.round.serverNow - Date.now());
+      }
     });
 
     // refused by the server: for good, socket.io will not retry
@@ -175,5 +182,5 @@ export function useRoomConnection(
     setAttempt((current) => current + 1);
   }, []);
 
-  return { status, room, error, send, leave, reconnect };
+  return { status, room, error, clockOffset, send, leave, reconnect };
 }
