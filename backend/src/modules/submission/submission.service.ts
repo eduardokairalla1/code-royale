@@ -44,6 +44,9 @@ export class SubmissionService {
   // players whose example run is still going: one at a time each
   private readonly runningPlayers = new Set<string>();
 
+  // submissions being judged, by room code, so the round can wait for them
+  private readonly judging = new Map<string, Set<Promise<unknown>>>();
+
   /**
    * Create the service.
    *
@@ -169,31 +172,108 @@ export class SubmissionService {
    */
   async submit(code: string, playerId: string, draft: Draft): Promise<Verdict> {
 
-    const { room, round, result } = await this.getActiveRound(
-      code,
-      playerId,
-    );
+    // tracked from the start, so the round end waits for it
+    return this.track(code, async () => {
 
-    // one submission per round
-    if (result.submittedAt !== null) {
-      throw new AlreadySubmittedError({ code, playerId });
-    }
+      const { room, round, result } = await this.getActiveRound(
+        code,
+        playerId,
+      );
 
-    // lock it right away: everyone sees it as submitted, being judged
-    result.submittedAt = Date.now();
-    round.drafts.set(playerId, draft);
+      // one submission per round
+      if (result.submittedAt !== null) {
+        throw new AlreadySubmittedError({ code, playerId });
+      }
 
-    await this.roomService.update(room);
+      // lock it right away: everyone sees it as submitted, being judged
+      result.submittedAt = Date.now();
+      round.drafts.set(playerId, draft);
 
-    try {
-      return await this.judge(room.code, playerId, draft, false);
-
-    // could not judge: undo, so the player can submit again
-    } catch (error) {
-      result.submittedAt = null;
       await this.roomService.update(room);
 
-      throw error;
+      try {
+        return await this.judge(room.code, playerId, draft, false);
+
+      // could not judge: undo, so the player can submit again
+      } catch (error) {
+        result.submittedAt = null;
+        await this.roomService.update(room);
+
+        throw error;
+      }
+    });
+  }
+
+  /**
+   * Time is up: wait for judging, then submit every missing draft.
+   *
+   * @param {string} code The room code.
+   *
+   * @returns {Promise<void>}
+   */
+  async submitDrafts(code: string): Promise<void> {
+
+    // let manual submissions land first
+    await Promise.allSettled([...(this.judging.get(code) ?? [])]);
+
+    const room = await this.roomService.find(code);
+    const round = room?.round;
+
+    if (!room || !round) {
+      return;
+    }
+
+    const pending: Promise<unknown>[] = [];
+
+    for (const [playerId, result] of round.results) {
+      const draft = round.drafts.get(playerId);
+
+      // already submitted, or never wrote anything
+      if (result.submittedAt !== null || !draft?.code.trim()) {
+        continue;
+      }
+
+      // submitted at the deadline, on their behalf
+      result.submittedAt = round.endsAt;
+      result.autoSubmitted = true;
+
+      pending.push(this.judgeDraft(room.code, playerId, draft, result));
+    }
+
+    await this.roomService.update(room);
+    await Promise.all(pending);
+  }
+
+  /**
+   * Judge a draft submitted at time out; a failure scores zero.
+   *
+   * @param {string} code The room code.
+   * @param {string} playerId Whose draft it is.
+   * @param {Draft} draft The language and the code.
+   * @param {PlayerResult} result The player's result, already submitted.
+   *
+   * @returns {Promise<void>}
+   */
+  private async judgeDraft(
+    code: string,
+    playerId: string,
+    draft: Draft,
+    result: PlayerResult,
+  ): Promise<void> {
+
+    try {
+      await this.judge(code, playerId, draft, true);
+
+    // sandbox down at the deadline: nothing passed; judge logged why
+    } catch {
+      const room = await this.roomService.find(code);
+
+      result.passed = 0;
+      result.total = room?.round?.challenge.tests.length ?? 0;
+
+      if (room) {
+        await this.roomService.update(room);
+      }
     }
   }
 
@@ -353,5 +433,35 @@ export class SubmissionService {
     }
 
     return { room, round, result };
+  }
+
+  /**
+   * Keep track of a submission until it settles.
+   *
+   * @param {string} code The room code.
+   * @param {() => Promise<T>} task The submission.
+   *
+   * @returns {Promise<T>} Whatever the submission resolves to.
+   */
+  private track<T>(code: string, task: () => Promise<T>): Promise<T> {
+
+    const inFlight = this.judging.get(code) ?? new Set<Promise<unknown>>();
+    const promise = task();
+
+    inFlight.add(promise);
+    this.judging.set(code, inFlight);
+
+    // forget it once settled, and the room once nothing is left
+    const forget = (): void => {
+      inFlight.delete(promise);
+
+      if (inFlight.size === 0) {
+        this.judging.delete(code);
+      }
+    };
+
+    promise.then(forget, forget);
+
+    return promise;
   }
 }

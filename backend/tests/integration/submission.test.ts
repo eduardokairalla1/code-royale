@@ -1,5 +1,5 @@
 /**
- * Running the code against the examples and submitting it.
+ * Running and submitting code, auto submit and ranking.
  */
 
 // --- IMPORTS ---
@@ -223,5 +223,44 @@ describe('submitting', () => {
 
     const retry = await ana!.emit('submission:submit', program(PROGRAMS.sum));
     expect(retry.data.status).toBe('ACCEPTED');
+  });
+});
+
+describe('end of the round', () => {
+
+  it('auto submits drafts at the deadline and ranks everyone', async () => {
+    const {
+      clients: [ana, bob, caio, dani, eva],
+    } = await roundWith(['Ana', 'Bob', 'Caio', 'Dani', 'Eva']);
+
+    await ana!.emit('submission:submit', program(PROGRAMS.sum));
+    await bob!.emit('submission:submit', program(PROGRAMS.sum));
+    await caio!.emit('submission:submit', program('print:7'));
+
+    // dani never submits but has a solution in the editor; eva has nothing
+    await dani!.emit('submission:draft', program(PROGRAMS.sum));
+    await eva!.emit('submission:draft', program(''));
+
+    const finished = await ana!.waitFor((r) => r.status === 'FINISHED');
+
+    expect(ranking(finished))
+      .toBe('1:Ana:100 2:Bob:100 3:Dani:100(auto) 4:Caio:25 -:Eva:-');
+
+    // drafts stay private the whole time
+    const broadcast = JSON.stringify(ana!.states);
+
+    expect(broadcast).not.toContain('"drafts"');
+    expect(broadcast).not.toContain('"language"');
+  });
+
+  it('refuses runs once the round is over', async () => {
+    const { clients: [ana] } = await roundWith(['Ana']);
+
+    await ana!.emit('submission:submit', program(PROGRAMS.sum));
+    await ana!.waitFor((r) => r.status === 'FINISHED');
+
+    const response = await ana!.emit('submission:run', program(PROGRAMS.sum));
+
+    expect(response.error).toBe('round_not_running_error');
   });
 });
