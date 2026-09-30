@@ -62,6 +62,7 @@ func (s *Server) Handler() http.Handler {
 
 	// under the prefix, also the public path: proxies route it as is
 	mux.HandleFunc("GET "+Prefix+"/health", s.health)
+	mux.HandleFunc("GET "+Prefix+"/ws", s.connect)
 
 	return mux
 }
