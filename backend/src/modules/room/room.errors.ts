@@ -16,15 +16,6 @@ export class RoomNotFoundError extends AppError {
 }
 
 /**
- * Raised when joining a room whose game is running.
- */
-export class RoomInGameError extends AppError {
-  static override readonly MESSAGE = 'The game has already started!';
-  static override readonly STATUS_CODE = 409;
-  static override readonly LOG_LEVEL = 'warn';
-}
-
-/**
  * Raised when joining a room that reached the player limit.
  */
 export class RoomFullError extends AppError {

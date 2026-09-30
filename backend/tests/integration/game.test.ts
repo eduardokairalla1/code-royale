@@ -1,5 +1,5 @@
 /**
- * Round lifecycle: start and clock.
+ * Round lifecycle: start, clock and late joiners.
  */
 
 // --- IMPORTS ---
@@ -57,6 +57,23 @@ describe('starting', () => {
     );
     expect(room.round?.results).toHaveLength(2);
     expect(JSON.stringify(guestClient.states)).not.toContain('999999');
+  });
+});
+
+describe('late joiners', () => {
+
+  it('can join mid round and wait for the next one', async () => {
+    const { server, host, hostClient } = await roomWithTwo();
+
+    await hostClient.emit('game:start');
+
+    const late = await joinRoom(server, host.code, 'Late');
+    const lateClient = await TestClient.join(server, late);
+    const room = await lateClient.waitFor((r) => r.status === 'PLAYING');
+
+    expect(room.players.map((p) => p.name)).toContain('Late');
+    expect(room.round?.results.map((r) => r.playerId))
+      .not.toContain(late.playerId);
   });
 });
 

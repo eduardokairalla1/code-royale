@@ -12,7 +12,6 @@ import { InvalidPlayerTokenError } from './room.errors.js';
 import { NotHostError } from './room.errors.js';
 import { RoomCodeGenerationError } from './room.errors.js';
 import { RoomFullError } from './room.errors.js';
-import { RoomInGameError } from './room.errors.js';
 import { RoomNotFoundError } from './room.errors.js';
 import { TooManyRoomsError } from './room.errors.js';
 import type { RoomStore } from './room.store.js';
@@ -138,7 +137,7 @@ export class RoomService {
   }
 
   /**
-   * Add a new player to an existing room.
+   * Add a new player to a room; mid game, they wait for the next round.
    *
    * @param {string} code The room code.
    * @param {string} name The player's name.
@@ -146,17 +145,11 @@ export class RoomService {
    * @returns {Promise<JoinResult>} The room and the new player.
    *
    * @throws {RoomNotFoundError} When the room does not exist.
-   * @throws {RoomInGameError} When a game is running.
    * @throws {RoomFullError} When the room reached the player limit.
    */
   async join(code: string, name: string): Promise<JoinResult> {
 
     const room = await this.getOrThrow(code);
-
-    // no joining mid game
-    if (room.status === 'PLAYING') {
-      throw new RoomInGameError({ code: room.code });
-    }
 
     // room reached the player limit
     if (room.players.size >= this.options.maxPlayersPerRoom) {
