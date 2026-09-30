@@ -1,0 +1,26 @@
+# --- Release ---
+# Every merge to main: tests again, then pushes the images for the deploy.
+name: release
+
+on:
+  push:
+    branches: [main]
+
+# one release at a time, in merge order; a running one always finishes
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    uses: ./.github/workflows/tests.yaml
+
+  publish:
+    needs: tests
+    uses: ./.github/workflows/images.yaml
+    with:
+      push: true
+    secrets: inherit
