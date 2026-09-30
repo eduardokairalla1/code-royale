@@ -4,6 +4,8 @@
 
 // --- IMPORTS ---
 import { generateRoomCode } from '../../shared/ids.js';
+import { Event } from '../../shared/logging/events.js';
+import { log } from '../../shared/logging/events.js';
 import { RoomCodeGenerationError } from './room.errors.js';
 import { RoomFullError } from './room.errors.js';
 import { RoomInGameError } from './room.errors.js';
@@ -14,6 +16,7 @@ import type { Player } from './room.types.js';
 import type { Room } from './room.types.js';
 import { createPlayer } from './room.utils.js';
 import { normalizeRoomCode } from './room.utils.js';
+import type { FastifyBaseLogger } from 'fastify';
 
 // --- GLOBALS ---
 const MAX_ROOM_CODE_ATTEMPTS = 10;
@@ -28,12 +31,13 @@ export interface JoinResult {
 }
 
 /**
- * Settings of the room service.
+ * Settings and dependencies of the room service.
  */
 export interface RoomServiceOptions {
   maxPlayersPerRoom: number;
   // rooms held at once, so creating them cannot eat the memory
   maxRooms: number;
+  logger: FastifyBaseLogger;
 }
 
 /**
@@ -45,7 +49,7 @@ export class RoomService {
    * Create the service.
    *
    * @param {RoomStore} store Where rooms are kept.
-   * @param {RoomServiceOptions} options Settings.
+   * @param {RoomServiceOptions} options Settings and dependencies.
    */
   constructor(
     private readonly store: RoomStore,
@@ -80,6 +84,12 @@ export class RoomService {
     };
 
     await this.store.save(room);
+
+    log(this.options.logger, 'info', Event.RoomCreated, {
+      room_code: room.code,
+      player_id: host.id,
+      rooms: rooms + 1,
+    });
 
     return { room, player: host };
   }
@@ -118,6 +128,13 @@ export class RoomService {
     room.players.set(player.id, player);
 
     await this.store.save(room);
+
+    log(this.options.logger, 'info', Event.PlayerJoined, {
+      room_code: room.code,
+      player_id: player.id,
+      players: room.players.size,
+      status: room.status,
+    });
 
     return { room, player };
   }

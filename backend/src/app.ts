@@ -53,6 +53,7 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
   const roomService = new RoomService(new MemoryRoomStore(), {
     maxPlayersPerRoom: options.maxPlayersPerRoom ?? config.maxPlayersPerRoom,
     maxRooms: options.maxRooms ?? config.maxRooms,
+    logger: app.log,
   });
 
   // what this instance runs with, once it listens; never the secrets

@@ -16,6 +16,10 @@ export const Event = {
 
   // one per http request
   Request: 'request',
+
+  // rooms
+  RoomCreated: 'room_created',
+  PlayerJoined: 'player_joined',
 } as const;
 
 // --- CODE ---

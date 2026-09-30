@@ -96,10 +96,13 @@ async function startLogged(): Promise<{ server: TestServer; logs: LogLines }> {
 
 describe('logging', () => {
 
-  it('logs a request with the room it touched', async () => {
+  it('follows a room from its creation', async () => {
     const { server, logs } = await startLogged();
 
     const host = await createRoom(server, 'Host');
+    await request(server, 'POST', `/api/rooms/${host.code}/join`, {
+      name: 'Guest',
+    });
     const ids = { room_code: host.code, player_id: host.playerId };
 
     // every line says which build wrote it
@@ -117,6 +120,10 @@ describe('logging', () => {
       outcome: 'ok',
       duration_ms: expect.any(Number),
     });
+
+    await logs.find('room_created', ids);
+    expect(await logs.find('player_joined', { room_code: host.code }))
+      .toMatchObject({ players: 2, status: 'LOBBY' });
 
     // the token never reaches the logs
     expect(logs.raw.join('\n')).not.toContain(host.token);
