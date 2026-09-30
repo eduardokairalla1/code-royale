@@ -1,0 +1,51 @@
+.button {
+  position: relative;
+  display: inline-flex;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-hand);
+  color: var(--ink);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  color: var(--ink-soft);
+}
+
+.label {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  transition: transform var(--duration-fast) ease-out;
+}
+
+.md .label {
+  padding: 8px 20px 10px;
+  font-size: 21px;
+}
+
+.lg .label {
+  padding: 12px 28px 14px;
+  font-size: 26px;
+}
+
+.block {
+  display: flex;
+  width: 100%;
+}
+
+/* lift a little on hover, sink into the shadow when pressed */
+.button:not(:disabled):hover :global([data-sketch-face]) {
+  transform: translate(-1px, -1px);
+}
+
+.button:not(:disabled):active :global([data-sketch-face]) {
+  transform: translate(4px, 4px);
+}
