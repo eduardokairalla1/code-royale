@@ -36,6 +36,9 @@ export const Event = {
   RoundFinished: 'round_finished',
   RoundRestarted: 'round_restarted',
 
+  // code runs
+  ExamplesRun: 'examples_run',
+
   TimerFailed: 'timer_failed',
 } as const;
 

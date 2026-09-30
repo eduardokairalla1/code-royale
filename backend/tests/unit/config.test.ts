@@ -45,6 +45,7 @@ describe('config', () => {
       maxRooms: 1000,
       challengesDir: undefined,
       pistonTimeoutMs: 60_000,
+      maxCodeLength: 64_000,
     });
     expect(config.enabledLanguages).toHaveLength(8);
   });

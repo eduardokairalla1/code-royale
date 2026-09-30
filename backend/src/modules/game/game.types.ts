@@ -8,6 +8,14 @@ import type { PublicChallenge } from '../challenge/challenge.types.js';
 
 // --- CODE ---
 /**
+ * The latest code a player has in the editor, synced while they type.
+ */
+export interface Draft {
+  language: string;
+  code: string;
+}
+
+/**
  * How a player did this round; null until their submission is judged.
  */
 export interface PlayerResult {

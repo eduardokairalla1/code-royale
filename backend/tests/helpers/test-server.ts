@@ -11,6 +11,7 @@ import {
 import type { PublicRoom } from '../../src/modules/room/room.types.js';
 import type { CommandResponse } from '../../src/shared/socket-command.js';
 import { SOCKET_PATH } from '../../src/socket.js';
+import { FakeExecutor } from './fake-executor.js';
 import type { FastifyInstance } from 'fastify';
 import { io } from 'socket.io-client';
 import type { Socket } from 'socket.io-client';
@@ -42,15 +43,16 @@ export interface Identity {
 }
 
 /**
- * A running server.
+ * A running server and the fake sandbox behind it.
  */
 export interface TestServer {
   app: FastifyInstance;
   url: string;
+  executor: FakeExecutor;
 }
 
 /**
- * Start a server with fixture challenges and short timers, no logs.
+ * Start a server with fake execution, fixture challenges, short timers.
  *
  * @param {AppOptions} options Overrides for the test defaults.
  *
@@ -60,8 +62,11 @@ export async function startServer(
   options: AppOptions = {},
 ): Promise<TestServer> {
 
+  const executor = new FakeExecutor();
+
   const app = buildApp({
     logger: false,
+    executor,
     challengeService: ChallengeService.load(FIXTURES),
     emptyRoomTtlMs: TEST_TIMINGS.emptyRoomTtlMs,
     reconnectGraceMs: TEST_TIMINGS.reconnectGraceMs,
@@ -72,7 +77,7 @@ export async function startServer(
 
   const address = app.server.address();
   const port = typeof address === 'object' && address ? address.port : 0;
-  const server = { app, url: `http://127.0.0.1:${port}` };
+  const server = { app, url: `http://127.0.0.1:${port}`, executor };
 
   openServers.push(server);
 
