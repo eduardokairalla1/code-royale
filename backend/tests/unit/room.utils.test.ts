@@ -1,5 +1,5 @@
 /**
- * Room helpers: public views and room codes.
+ * Room helpers: public views, host hand-over and room codes.
  */
 
 // --- IMPORTS ---
@@ -7,6 +7,7 @@ import type { Player } from '../../src/modules/room/room.types.js';
 import type { Room } from '../../src/modules/room/room.types.js';
 import { createPlayer } from '../../src/modules/room/room.utils.js';
 import { normalizeRoomCode } from '../../src/modules/room/room.utils.js';
+import { pickNextHost } from '../../src/modules/room/room.utils.js';
 import { toPublicRoom } from '../../src/modules/room/room.utils.js';
 import { generateRoomCode } from '../../src/shared/ids.js';
 import { describe } from 'vitest';
@@ -58,6 +59,25 @@ describe('toPublicRoom', () => {
 
     expect(toPublicRoom(room).players.map((p) => [p.isHost, p.connected]))
       .toEqual([[true, true], [false, false]]);
+  });
+});
+
+describe('pickNextHost', () => {
+
+  it('prefers the oldest connected player', () => {
+    const room = roomWith([player('Ana', false), player('Bob', true)]);
+
+    expect(pickNextHost(room)?.name).toBe('Bob');
+  });
+
+  it('falls back to the oldest player when nobody is connected', () => {
+    const room = roomWith([player('Ana', false), player('Bob', false)]);
+
+    expect(pickNextHost(room)?.name).toBe('Ana');
+  });
+
+  it('returns nobody for an empty room', () => {
+    expect(pickNextHost(roomWith([]))).toBeUndefined();
   });
 });
 

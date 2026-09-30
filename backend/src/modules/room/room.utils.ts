@@ -61,3 +61,18 @@ export function normalizeRoomCode(code: string): string {
 
   return code.trim().toUpperCase();
 }
+
+/**
+ * Pick the next host: the oldest connected player, else the oldest.
+ *
+ * @param {Room} room The room, already without the old host.
+ *
+ * @returns {Player | undefined} The next host, undefined for an empty room.
+ */
+export function pickNextHost(room: Room): Player | undefined {
+
+  const players = [...room.players.values()];
+
+  // map keeps join order, so the first match is the oldest
+  return players.find((player) => player.socketId !== null) ?? players[0];
+}

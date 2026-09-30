@@ -18,6 +18,7 @@ import type { Player } from './room.types.js';
 import type { Room } from './room.types.js';
 import { createPlayer } from './room.utils.js';
 import { normalizeRoomCode } from './room.utils.js';
+import { pickNextHost } from './room.utils.js';
 import type { FastifyBaseLogger } from 'fastify';
 
 // --- GLOBALS ---
@@ -300,7 +301,7 @@ export class RoomService {
   }
 
   /**
-   * Remove a player, dropping the room once it is empty.
+   * Remove a player, handing the host over or dropping the empty room.
    *
    * @param {string} code The room code.
    * @param {string} playerId The player's id.
@@ -336,7 +337,32 @@ export class RoomService {
       return;
     }
 
+    // host left: hand it over
+    if (room.hostId === playerId) {
+      this.handOverHost(room);
+    }
+
     await this.update(room);
+  }
+
+  /**
+   * Make the next player host, once the host is gone.
+   *
+   * @param {Room} room The room, without its host.
+   *
+   * @returns {void}
+   */
+  private handOverHost(room: Room): void {
+
+    const previous = room.hostId;
+
+    room.hostId = pickNextHost(room)?.id ?? room.hostId;
+
+    log(this.options.logger, 'info', Event.HostChanged, {
+      room_code: room.code,
+      from: previous,
+      to: room.hostId,
+    });
   }
 
   /**
