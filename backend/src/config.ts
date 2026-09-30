@@ -18,6 +18,13 @@ const envSchema = z.object({
   // general
   PORT: z.coerce.number().int().positive().default(3000),
   HOST: z.string().min(1).default('0.0.0.0'),
+  LOG_LEVEL: z
+    .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
+    .default('debug'),
+
+  // set by the image build; logged on every line
+  VERSION: z.string().min(1).default('dev'),
+  COMMIT: z.string().min(1).default('unknown'),
 
   // security: every origin allowed to call the api, comma separated
   CORS_ORIGIN: commaList
@@ -39,6 +46,9 @@ const env = parseEnv();
 export const config = {
   port: env.PORT,
   host: env.HOST,
+  logLevel: env.LOG_LEVEL,
+  version: env.VERSION,
+  commit: env.COMMIT,
   corsOrigins: env.CORS_ORIGIN,
   maxPlayersPerRoom: env.MAX_PLAYERS_PER_ROOM,
   maxRooms: env.MAX_ROOMS,

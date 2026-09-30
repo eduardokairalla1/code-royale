@@ -9,6 +9,7 @@ import { roomRoutes } from './modules/room/room.routes.js';
 import { RoomService } from './modules/room/room.service.js';
 import { systemRoutes } from './modules/system/system.routes.js';
 import { registerErrorHandlers } from './shared/errors/error-handler.js';
+import { loggerOptions } from './shared/logging/logger.js';
 import cors from '@fastify/cors';
 import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
@@ -33,7 +34,9 @@ export interface AppOptions {
 export function buildApp(options: AppOptions = {}): FastifyInstance {
 
   const app = Fastify({
-    logger: options.logger ?? true,
+    logger: options.logger === false
+      ? false
+      : loggerOptions(config.logLevel, config.version, config.commit),
   });
 
   // wire the services

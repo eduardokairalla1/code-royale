@@ -38,6 +38,7 @@ describe('config', () => {
     const config = await loadConfig({});
 
     expect(config).toMatchObject({
+      logLevel: 'debug',
       corsOrigins: ['http://localhost:5173'],
       maxPlayersPerRoom: 20,
       maxRooms: 1000,
@@ -53,6 +54,7 @@ describe('config', () => {
   });
 
   it.each([
+    [{ LOG_LEVEL: 'verbose' }, /LOG_LEVEL/],
     [{ MAX_PLAYERS_PER_ROOM: '0' }, /MAX_PLAYERS_PER_ROOM/],
     [{ CORS_ORIGIN: ' , ' }, /CORS_ORIGIN/],
   ])('refuses %j on boot', async (env, reason) => {
