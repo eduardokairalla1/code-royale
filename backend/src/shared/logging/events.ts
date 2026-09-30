@@ -38,6 +38,7 @@ export const Event = {
 
   // code runs
   ExamplesRun: 'examples_run',
+  SubmissionJudged: 'submission_judged',
 
   TimerFailed: 'timer_failed',
 } as const;

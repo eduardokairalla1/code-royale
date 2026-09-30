@@ -1,5 +1,5 @@
 /**
- * Submission socket handlers: run the examples and sync drafts.
+ * Submission socket handlers: run the examples, sync drafts and submit.
  */
 
 // --- IMPORTS ---
@@ -59,6 +59,14 @@ export function registerSubmissionSocket(
         return submissionService.saveDraft(roomCode, playerId, draft);
       }, 'debug');
     });
+
+    // the one submission against the hidden tests, answered with the verdict
+    socket.on('submission:submit', (payload, ack) => {
+      void runCommand(socket, 'submission:submit', ack, logger, () => {
+        const draft = parseInput(codeSchema, payload);
+        return submissionService.submit(roomCode, playerId, draft);
+      });
+    });
   });
 }
 
@@ -67,7 +75,7 @@ export function registerSubmissionSocket(
  *
  * @param {SubmissionLimits} limits Enabled languages and code size.
  *
- * @returns The schema for runs, and the one for drafts.
+ * @returns The schema for run and submit, and the one for drafts.
  */
 function buildSchemas({ languageIds, maxCodeLength }: SubmissionLimits) {
 
@@ -75,7 +83,7 @@ function buildSchemas({ languageIds, maxCodeLength }: SubmissionLimits) {
     message: 'Unsupported language',
   });
 
-  // runs need something to run; the code is never altered
+  // run and submit need something to run; the code is never altered
   const codeSchema = z.object({
     language: languageSchema,
     code: z.string().max(maxCodeLength).refine((code) => code.trim() !== '', {
