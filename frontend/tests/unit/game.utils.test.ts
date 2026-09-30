@@ -1,8 +1,9 @@
 /**
- * Round helpers: clocks and lookups.
+ * Round helpers: clocks, status labels and lookups.
  */
 
 // --- IMPORTS ---
+import { describeStatus } from '../../src/modules/game/game.utils.ts';
 import { findPlayer } from '../../src/modules/game/game.utils.ts';
 import { findResult } from '../../src/modules/game/game.utils.ts';
 import { formatClock } from '../../src/modules/game/game.utils.ts';
@@ -56,6 +57,15 @@ describe('formatClock', () => {
 
   it('never goes negative', () => {
     expect(formatClock(-5000)).toBe('0:00');
+  });
+});
+
+describe('describeStatus', () => {
+
+  it('names every status in english', () => {
+    expect(describeStatus('ACCEPTED')).toBe('Accepted');
+    expect(describeStatus('WRONG_ANSWER')).toBe('Wrong answer');
+    expect(describeStatus('TIME_LIMIT')).toBe('Time limit exceeded');
   });
 });
 
