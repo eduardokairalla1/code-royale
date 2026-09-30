@@ -59,6 +59,10 @@ const envSchema = z.object({
       message: `Use only: ${LANGUAGE_IDS.join(', ')}`,
     })
     .default(LANGUAGE_IDS),
+
+  // signs the tickets for the lsp service; unset turns autocomplete off
+  LSP_SECRET: z.string().min(32).optional(),
+  LSP_TICKET_TTL_SECONDS: z.coerce.number().int().positive().default(60),
 });
 
 // load the .env file into process.env before reading anything
@@ -85,6 +89,8 @@ export const config = {
   maxCodeLength: env.MAX_CODE_LENGTH,
   maxConcurrentRuns: env.MAX_CONCURRENT_RUNS,
   enabledLanguages: env.ENABLED_LANGUAGES,
+  lspSecret: env.LSP_SECRET,
+  lspTicketTtlMs: env.LSP_TICKET_TTL_SECONDS * 1000,
 };
 
 // --- CODE ---

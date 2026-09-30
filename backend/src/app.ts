@@ -11,6 +11,8 @@ import { GameService } from './modules/game/game.service.js';
 import { registerGameSocket } from './modules/game/game.socket.js';
 import { pickLanguages } from './modules/language/language.catalog.js';
 import { languageRoutes } from './modules/language/language.routes.js';
+import { LspService } from './modules/lsp/lsp.service.js';
+import { registerLspSocket } from './modules/lsp/lsp.socket.js';
 import { MemoryRoomStore } from './modules/room/memory-room.store.js';
 import { roomRoutes } from './modules/room/room.routes.js';
 import { RoomService } from './modules/room/room.service.js';
@@ -45,6 +47,7 @@ export interface AppOptions {
   maxCodeLength?: number;
   maxConcurrentRuns?: number;
   enabledLanguages?: string[];
+  lspSecret?: string;
   logger?: boolean;
   logStream?: { write(line: string): void };
 }
@@ -97,6 +100,14 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
     app.log,
   );
 
+  const lspSecret = options.lspSecret ?? config.lspSecret;
+
+  const lspService = new LspService(roomService, {
+    secret: lspSecret,
+    ticketTtlMs: config.lspTicketTtlMs,
+    logger: app.log,
+  });
+
   const enabledLanguages = options.enabledLanguages ?? config.enabledLanguages;
 
   // what this instance runs with, once it listens; never the secrets
@@ -112,6 +123,7 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
         options.maxPlayersPerRoom ?? config.maxPlayersPerRoom,
       max_concurrent_runs:
         options.maxConcurrentRuns ?? config.maxConcurrentRuns,
+      lsp: lspSecret !== undefined,
       piston: new URL(config.pistonUrl).origin,
     });
   });
@@ -143,6 +155,7 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
     languageIds: enabledLanguages,
     maxCodeLength: options.maxCodeLength ?? config.maxCodeLength,
   });
+  registerLspSocket(io, lspService, app.log, enabledLanguages);
 
   return app;
 }
