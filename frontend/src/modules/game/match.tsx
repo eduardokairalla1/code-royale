@@ -15,6 +15,8 @@ import { useLanguages } from '../language/language.api.ts';
 import type { Room } from '../room/room.types.ts';
 import type { Draft } from './game.types.ts';
 import type { ExampleResult } from './game.types.ts';
+import type { Verdict } from './game.types.ts';
+import { findResult } from './game.utils.ts';
 import styles from './match.module.css';
 import { Problem } from './problem.tsx';
 import { RunOutput } from './run-output.tsx';
@@ -22,6 +24,7 @@ import { Scoreboard } from './scoreboard.tsx';
 import { Timer } from './timer.tsx';
 import { useEditorDraft } from './use-editor-draft.ts';
 import { useServerNow } from './use-server-now.ts';
+import { VerdictCard } from './verdict-card.tsx';
 import { lazy } from 'react';
 import { Suspense } from 'react';
 import { useCallback } from 'react';
@@ -69,6 +72,7 @@ export function Match({ room, selfId, clockOffset, send }: MatchProps) {
 
   // the room view only renders the match during a round
   const round = room.round as NonNullable<Room['round']>;
+  const result = findResult(room, selfId);
 
   const languages = useLanguages();
   const now = useServerNow(clockOffset);
@@ -87,7 +91,10 @@ export function Match({ room, selfId, clockOffset, send }: MatchProps) {
 
   const [running, setRunning] = useState(false);
   const [runResults, setRunResults] = useState<ExampleResult[] | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [verdict, setVerdict] = useState<Verdict | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmSubmit, setConfirmSubmit] = useState(false);
   const [pendingLanguage, setPendingLanguage] = useState<string | null>(null);
   const [stamp, setStamp] = useState<StampState | null>(() => {
     return now - round.startedAt < FRESH_ROUND_MS
@@ -95,10 +102,11 @@ export function Match({ room, selfId, clockOffset, send }: MatchProps) {
       : null;
   });
 
-  const locked = timeUp;
+  const submitted = result?.submittedAt != null;
+  const locked = submitted || submitting || timeUp;
   const hasCode = Boolean(editor.draft?.code.trim());
 
-  useTimeUp(timeUp, () => {
+  useTimeUp(timeUp && !submitted, () => {
     editor.flush();
     setStamp({ text: 'TIME!', color: 'var(--gem)' });
   });
@@ -127,6 +135,37 @@ export function Match({ room, selfId, clockOffset, send }: MatchProps) {
       setError(describeUnknownError(reason));
     } finally {
       setRunning(false);
+    }
+  }
+
+  /**
+   * Submit the code, once, against the hidden tests.
+   *
+   * @returns {Promise<void>}
+   */
+  async function handleSubmit(): Promise<void> {
+
+    setConfirmSubmit(false);
+
+    if (!editor.draft) {
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+
+    // judged: stamp it and show the score
+    try {
+      const judged = await send('submission:submit', editor.draft);
+
+      setVerdict(judged as Verdict);
+      setStamp({ text: 'SUBMITTED!', color: 'var(--success)' });
+
+    // not judged: the server undid it, so they may try again
+    } catch (reason) {
+      setError(describeUnknownError(reason));
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -185,6 +224,12 @@ export function Match({ room, selfId, clockOffset, send }: MatchProps) {
               >
                 {running ? 'Running...' : 'Run'}
               </Button>
+              <Button
+                disabled={locked || running || !hasCode}
+                onClick={() => setConfirmSubmit(true)}
+              >
+                {submitting ? 'Judging...' : 'Submit'}
+              </Button>
             </div>
           </div>
 
@@ -203,7 +248,20 @@ export function Match({ room, selfId, clockOffset, send }: MatchProps) {
 
           {error && <p className={styles.error} role="alert">{error}</p>}
 
-          {timeUp && (
+          {submitting && <Scribble label="Running the hidden tests..." />}
+
+          {result && result.submittedAt !== null && result.passed !== null && (
+            <VerdictCard
+              passed={result.passed}
+              total={result.total ?? 0}
+              percentage={result.percentage ?? 0}
+              status={verdict?.status ?? null}
+              compileError={verdict?.compileError ?? null}
+              autoSubmitted={result.autoSubmitted}
+            />
+          )}
+
+          {timeUp && !submitted && (
             <Scribble label="Time is up! Submitting your code..." />
           )}
 
@@ -211,6 +269,17 @@ export function Match({ room, selfId, clockOffset, send }: MatchProps) {
           {!running && runResults && <RunOutput results={runResults} />}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmSubmit}
+        title="Submit now?"
+        confirmLabel="Submit"
+        onConfirm={() => void handleSubmit()}
+        onCancel={() => setConfirmSubmit(false)}
+      >
+        You can only submit once this round. Your code will run against the
+        hidden tests.
+      </ConfirmDialog>
 
       <ConfirmDialog
         open={pendingLanguage !== null}
