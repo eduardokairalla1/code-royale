@@ -15,6 +15,15 @@ export class ExecutorUnavailableError extends AppError {
 }
 
 /**
+ * Raised when too many runs are already going, so one more would only wait.
+ */
+export class ExecutorBusyError extends AppError {
+  static override readonly MESSAGE = 'Too many runs at once, try again!';
+  static override readonly STATUS_CODE = 503;
+  static override readonly LOG_LEVEL = 'warn';
+}
+
+/**
  * Raised for a language with no sandbox runtime: a bug, not a player error.
  */
 export class UnsupportedRuntimeError extends AppError {
