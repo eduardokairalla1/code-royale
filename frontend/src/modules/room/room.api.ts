@@ -5,6 +5,7 @@
 // --- IMPORTS ---
 import { request } from '../../shared/http.ts';
 import type { JoinResponse } from './room.types.ts';
+import type { Room } from './room.types.ts';
 
 // --- CODE ---
 /**
@@ -18,6 +19,19 @@ import type { JoinResponse } from './room.types.ts';
  */
 export function createRoom(name: string): Promise<JoinResponse> {
   return request<JoinResponse>('POST', '/rooms', { name });
+}
+
+/**
+ * Look up a room by its code.
+ *
+ * @param {string} code The room code.
+ *
+ * @returns {Promise<Room>} The room.
+ *
+ * @throws {ApiError} When the room does not exist.
+ */
+export function getRoom(code: string): Promise<Room> {
+  return request<Room>('GET', `/rooms/${encodeURIComponent(code)}`);
 }
 
 /**
