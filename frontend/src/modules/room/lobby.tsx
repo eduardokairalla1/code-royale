@@ -6,6 +6,7 @@
 import { Annotate } from '../../components/annotate/annotate.tsx';
 import { Button } from '../../components/button/button.tsx';
 import { Paper } from '../../components/paper/paper.tsx';
+import { LanguagePicker } from '../language/language-picker.tsx';
 import styles from './lobby.module.css';
 import { PlayerList } from './player-list.tsx';
 import type { Room } from './room.types.ts';
@@ -48,6 +49,8 @@ export function Lobby({ room, selfId }: LobbyProps) {
         </h2>
         <PlayerList players={room.players} selfId={selfId} />
       </Paper>
+
+      <LanguagePicker />
 
       <div className={styles.footer}>
         {!isHost && <WaitingForHost />}
