@@ -13,14 +13,23 @@ import type { FastifyInstance } from 'fastify';
 
 // --- CODE ---
 /**
+ * What the app can be built with; tests swap in fakes and short timers.
+ */
+export interface AppOptions {
+  logger?: boolean;
+}
+
+/**
  * Build the application with its services, error handlers and routes.
+ *
+ * @param {AppOptions} options Replacements for the production defaults.
  *
  * @returns {FastifyInstance} The configured Fastify instance.
  */
-export function buildApp(): FastifyInstance {
+export function buildApp(options: AppOptions = {}): FastifyInstance {
 
   const app = Fastify({
-    logger: true,
+    logger: options.logger ?? true,
   });
 
   // wire the services
