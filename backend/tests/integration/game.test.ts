@@ -5,6 +5,7 @@
 // --- IMPORTS ---
 import { createRoom } from '../helpers/test-server.js';
 import { joinRoom } from '../helpers/test-server.js';
+import { sleep } from '../helpers/test-server.js';
 import { startServer } from '../helpers/test-server.js';
 import { TEST_TIMINGS } from '../helpers/test-server.js';
 import { TestClient } from '../helpers/test-server.js';
@@ -61,15 +62,23 @@ describe('starting', () => {
 
 describe('the clock', () => {
 
-  it('ends the round on time', async () => {
-    const { hostClient } = await roomWithTwo();
+  it('ends the round on time and keeps disconnected players', async () => {
+    const { hostClient, guestClient } = await roomWithTwo();
 
     await hostClient.emit('game:start');
+    guestClient.socket.disconnect();
+
+    // past the grace period, still mid round: the guest is kept
+    await sleep(TEST_TIMINGS.reconnectGraceMs * 2);
+    expect(hostClient.state?.players).toHaveLength(2);
 
     const finished = await hostClient.waitFor(
       (room) => room.status === 'FINISHED',
     );
 
     expect(finished.round?.results).toHaveLength(2);
+
+    // round over: the grace period applies again
+    await hostClient.waitFor((room) => room.players.length === 1);
   });
 });
