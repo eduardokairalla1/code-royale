@@ -1,0 +1,23 @@
+.sheet {
+  position: relative;
+  height: 440px;
+}
+
+/* the editor sits inside the frame, clear of its marker line */
+.editor {
+  position: absolute;
+  inset: 6px;
+  z-index: 1;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.sheet[data-readonly='true'] .editor {
+  opacity: 0.75;
+}
+
+@media (max-width: 900px) {
+  .sheet {
+    height: 360px;
+  }
+}
