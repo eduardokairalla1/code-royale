@@ -7,8 +7,7 @@ import type { Room } from './room.types.js';
 
 // --- CODE ---
 /**
- * Where rooms live. Memory today, Redis when there is more than one
- * server.
+ * Where rooms live: memory today, Redis with more than one server.
  */
 export interface RoomStore {
 

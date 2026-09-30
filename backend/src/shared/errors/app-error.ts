@@ -46,8 +46,7 @@ export class AppError extends Error {
   }
 
   /**
-   * Message sent to the client. Subclasses may override it to expose more
-   * than the class message.
+   * Message sent to the client; subclasses may expose more.
    *
    * @returns {string | string[]} The client-facing message.
    */
