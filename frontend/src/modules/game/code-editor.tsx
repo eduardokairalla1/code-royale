@@ -6,10 +6,13 @@
 import { Scribble } from '../../components/scribble/scribble.tsx';
 import { SketchFrame } from '../../components/sketch-frame/sketch-frame.tsx';
 import styles from './code-editor.module.css';
+import { useLanguageServer } from './lsp/use-language-server.ts';
 import './monaco-setup.ts';
 import { Editor } from '@monaco-editor/react';
 import type { BeforeMount } from '@monaco-editor/react';
 import type { OnMount } from '@monaco-editor/react';
+import type * as MonacoApi from 'monaco-editor/editor/editor.api';
+import { useState } from 'react';
 
 // --- GLOBALS ---
 const THEME = 'code-royale';
@@ -48,6 +51,16 @@ export interface CodeEditorProps {
   value: string;
   readOnly?: boolean;
   onChange: (value: string) => void;
+  // a ticket to the lsp service, for completions; none without it
+  requestTicket?: (language: string) => Promise<string>;
+}
+
+/**
+ * The mounted editor and its api.
+ */
+interface Mounted {
+  editor: MonacoApi.editor.IStandaloneCodeEditor;
+  monaco: typeof MonacoApi;
 }
 
 /**
@@ -62,17 +75,31 @@ export function CodeEditor({
   value,
   readOnly = false,
   onChange,
+  requestTicket,
 }: CodeEditorProps) {
 
+  const [mounted, setMounted] = useState<Mounted | null>(null);
+
+  useLanguageServer({
+    editor: mounted?.editor ?? null,
+    monaco: mounted?.monaco ?? null,
+    language,
+    enabled: !readOnly && requestTicket !== undefined,
+    requestTicket: requestTicket ?? noTicket,
+  });
+
   /**
-   * Fix the editor's letters once the font loads.
+   * Keep the editor once mounted, and fix its letters once the font loads.
    *
-   * @param {Parameters<OnMount>[0]} _editor The editor.
+   * @param {Parameters<OnMount>[0]} editor The editor.
    * @param {Parameters<OnMount>[1]} monaco Its api.
    *
    * @returns {void}
    */
-  const handleMount: OnMount = (_editor, monaco) => {
+  const handleMount: OnMount = (editor, monaco) => {
+
+    // the bundled api: see monaco-setup.ts
+    setMounted({ editor, monaco: monaco as unknown as typeof MonacoApi });
 
     // the web font may land after the editor measured its letters
     void document.fonts.ready.then(() => monaco.editor.remeasureFonts());
@@ -108,4 +135,13 @@ export function CodeEditor({
       </div>
     </div>
   );
+}
+
+/**
+ * Stand-in when there is no way to get a ticket: never called.
+ *
+ * @returns {Promise<string>} Never resolves to anything useful.
+ */
+function noTicket(): Promise<string> {
+  return Promise.reject(new Error('no ticket'));
 }
