@@ -34,6 +34,7 @@ export const Event = {
   // rounds
   RoundStarted: 'round_started',
   RoundFinished: 'round_finished',
+  RoundRestarted: 'round_restarted',
 
   TimerFailed: 'timer_failed',
 } as const;

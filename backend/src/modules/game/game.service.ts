@@ -1,5 +1,5 @@
 /**
- * Game rules: start rounds and end them.
+ * Game rules: start rounds, end them, and go back to the lobby.
  */
 
 // --- IMPORTS ---
@@ -9,6 +9,7 @@ import { TimerRegistry } from '../../shared/timers.js';
 import type { ChallengeService } from '../challenge/challenge.service.js';
 import type { RoomService } from '../room/room.service.js';
 import { GameAlreadyStartedError } from './game.errors.js';
+import { GameNotFinishedError } from './game.errors.js';
 import { createRound } from './game.utils.js';
 import { roundSummary } from './game.utils.js';
 import type { FastifyBaseLogger } from 'fastify';
@@ -19,7 +20,7 @@ type FinishReason = 'time_up';
 
 // --- CODE ---
 /**
- * Round lifecycle of a room: LOBBY -> PLAYING -> FINISHED.
+ * Round lifecycle of a room: LOBBY -> PLAYING -> FINISHED -> LOBBY.
  */
 export class GameService {
   private readonly roundTimers: TimerRegistry;
@@ -85,6 +86,37 @@ export class GameService {
       room.round.endsAt - Date.now(),
       () => this.finish(room.code, 'time_up'),
     );
+  }
+
+  /**
+   * Send everyone back to the lobby after a round.
+   *
+   * @param {string} code The room code.
+   * @param {string} playerId Who asked, must be the host.
+   *
+   * @returns {Promise<void>}
+   *
+   * @throws {NotHostError} When the player is not the host.
+   * @throws {GameNotFinishedError} When the round is not over.
+   */
+  async restart(code: string, playerId: string): Promise<void> {
+
+    const room = await this.roomService.getAsHost(code, playerId);
+
+    // only once the round is over
+    if (room.status !== 'FINISHED') {
+      throw new GameNotFinishedError({ code, status: room.status });
+    }
+
+    room.round = null;
+    room.status = 'LOBBY';
+
+    await this.roomService.update(room);
+
+    log(this.logger, 'info', Event.RoundRestarted, {
+      room_code: room.code,
+      player_id: playerId,
+    });
   }
 
   /**

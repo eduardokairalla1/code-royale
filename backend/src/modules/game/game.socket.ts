@@ -1,5 +1,5 @@
 /**
- * Game socket handlers: start a round.
+ * Game socket handlers: start a round and go back to the lobby.
  */
 
 // --- IMPORTS ---
@@ -35,5 +35,11 @@ export function registerGameSocket(
       });
     });
 
+    // host sends everyone back to the lobby
+    socket.on('game:restart', (ack) => {
+      void runCommand(socket, 'game:restart', ack, logger, () => {
+        return gameService.restart(roomCode, playerId);
+      });
+    });
   });
 }
