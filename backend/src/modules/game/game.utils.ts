@@ -37,6 +37,32 @@ export function createRound(challenge: Challenge, playerIds: string[]): Round {
 }
 
 /**
+ * Summarize a round for the logs: who submitted, and how.
+ *
+ * @param {Round} round The round.
+ *
+ * @returns The challenge, player counts and how long it ran.
+ */
+export function roundSummary(round: Round) {
+
+  const results = [...round.results.values()];
+  const submitted = results.filter((result) => result.submittedAt !== null);
+  const auto = submitted.filter((result) => result.autoSubmitted);
+
+  return {
+    challenge_id: round.challenge.id,
+    players: results.length,
+    submitted: submitted.length - auto.length,
+    auto_submitted: auto.length,
+    missing: results.length - submitted.length,
+    solved: results.filter((result) => {
+      return result.total !== null && result.passed === result.total;
+    }).length,
+    duration_ms: Date.now() - round.startedAt,
+  };
+}
+
+/**
  * Build the version of a round that is safe to send to clients.
  *
  * @param {Round} round The round.

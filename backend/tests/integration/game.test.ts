@@ -1,5 +1,5 @@
 /**
- * Round lifecycle: start.
+ * Round lifecycle: start and clock.
  */
 
 // --- IMPORTS ---
@@ -56,5 +56,20 @@ describe('starting', () => {
     );
     expect(room.round?.results).toHaveLength(2);
     expect(JSON.stringify(guestClient.states)).not.toContain('999999');
+  });
+});
+
+describe('the clock', () => {
+
+  it('ends the round on time', async () => {
+    const { hostClient } = await roomWithTwo();
+
+    await hostClient.emit('game:start');
+
+    const finished = await hostClient.waitFor(
+      (room) => room.status === 'FINISHED',
+    );
+
+    expect(finished.round?.results).toHaveLength(2);
   });
 });

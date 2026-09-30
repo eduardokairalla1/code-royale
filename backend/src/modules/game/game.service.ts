@@ -1,21 +1,28 @@
 /**
- * Game rules: start rounds.
+ * Game rules: start rounds and end them.
  */
 
 // --- IMPORTS ---
 import { Event } from '../../shared/logging/events.js';
 import { log } from '../../shared/logging/events.js';
+import { TimerRegistry } from '../../shared/timers.js';
 import type { ChallengeService } from '../challenge/challenge.service.js';
 import type { RoomService } from '../room/room.service.js';
 import { GameAlreadyStartedError } from './game.errors.js';
 import { createRound } from './game.utils.js';
+import { roundSummary } from './game.utils.js';
 import type { FastifyBaseLogger } from 'fastify';
+
+// --- GLOBALS ---
+// why a round ended: the clock
+type FinishReason = 'time_up';
 
 // --- CODE ---
 /**
- * Round lifecycle of a room: LOBBY -> PLAYING.
+ * Round lifecycle of a room: LOBBY -> PLAYING -> FINISHED.
  */
 export class GameService {
+  private readonly roundTimers: TimerRegistry;
 
   /**
    * Create the service.
@@ -28,7 +35,9 @@ export class GameService {
     private readonly roomService: RoomService,
     private readonly challengeService: ChallengeService,
     private readonly logger: FastifyBaseLogger,
-  ) {}
+  ) {
+    this.roundTimers = new TimerRegistry(logger, 'round_clock');
+  }
 
   /**
    * Start a round with a challenge the room has not played yet.
@@ -69,5 +78,45 @@ export class GameService {
       players: room.round.results.size,
       time_limit_s: challenge.timeLimitSeconds,
     });
+
+    // end the round when the clock runs out
+    this.roundTimers.start(
+      room.code,
+      room.round.endsAt - Date.now(),
+      () => this.finish(room.code, 'time_up'),
+    );
+  }
+
+  /**
+   * End a running round and show the results.
+   *
+   * @param {string} code The room code.
+   * @param {FinishReason} reason Why it ends now.
+   *
+   * @returns {Promise<void>}
+   */
+  private async finish(code: string, reason: FinishReason): Promise<void> {
+
+    this.roundTimers.clear(code);
+
+    const room = await this.roomService.find(code);
+
+    // room gone or round already over
+    if (!room || room.status !== 'PLAYING') {
+      return;
+    }
+
+    room.status = 'FINISHED';
+
+    await this.roomService.update(room);
+
+    // how the round went
+    if (room.round) {
+      log(this.logger, 'info', Event.RoundFinished, {
+        room_code: room.code,
+        reason,
+        ...roundSummary(room.round),
+      });
+    }
   }
 }

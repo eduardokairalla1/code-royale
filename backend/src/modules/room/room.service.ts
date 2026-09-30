@@ -188,17 +188,27 @@ export class RoomService {
    *
    * @param {string} code The room code, in any case.
    *
+   * @returns {Promise<Room | null>} The room, or null when missing.
+   */
+  async find(code: string): Promise<Room | null> {
+    return this.store.get(normalizeRoomCode(code));
+  }
+
+  /**
+   * Find a room by its code, failing when it does not exist.
+   *
+   * @param {string} code The room code, in any case.
+   *
    * @returns {Promise<Room>} The room.
    *
    * @throws {RoomNotFoundError} When the room does not exist.
    */
   async getOrThrow(code: string): Promise<Room> {
 
-    const normalizedCode = normalizeRoomCode(code);
-    const room = await this.store.get(normalizedCode);
+    const room = await this.find(code);
 
     if (!room) {
-      throw new RoomNotFoundError({ code: normalizedCode });
+      throw new RoomNotFoundError({ code: normalizeRoomCode(code) });
     }
 
     return room;

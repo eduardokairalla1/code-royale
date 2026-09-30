@@ -1,11 +1,12 @@
 /**
- * Rounds: creation and ranking.
+ * Rounds: creation, ranking and summary.
  */
 
 // --- IMPORTS ---
 import type { Challenge } from '../../src/modules/challenge/challenge.types.js';
 import type { PlayerResult } from '../../src/modules/game/game.types.js';
 import { createRound } from '../../src/modules/game/game.utils.js';
+import { roundSummary } from '../../src/modules/game/game.utils.js';
 import { toPublicRound } from '../../src/modules/game/game.utils.js';
 import { describe } from 'vitest';
 import { expect } from 'vitest';
@@ -97,5 +98,30 @@ describe('toPublicRound', () => {
     const ranked = toPublicRound(round).results.map((r) => r.playerId);
 
     expect(ranked).toEqual(['first', 'second']);
+  });
+});
+
+describe('roundSummary', () => {
+
+  it('counts who submitted, by hand or at time out, and who solved it', () => {
+    const round = createRound(CHALLENGE, ['a', 'b', 'c', 'd']);
+
+    round.results.set('a', result({ submittedAt: 1, passed: 1, total: 1 }));
+    round.results.set('b', result({ submittedAt: 2, passed: 0, total: 1 }));
+    round.results.set('c', result({
+      submittedAt: 3,
+      passed: 1,
+      total: 1,
+      autoSubmitted: true,
+    }));
+
+    expect(roundSummary(round)).toMatchObject({
+      challenge_id: 'sum',
+      players: 4,
+      submitted: 2,
+      auto_submitted: 1,
+      missing: 1,
+      solved: 2,
+    });
   });
 });
