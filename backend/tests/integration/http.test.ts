@@ -138,9 +138,15 @@ describe('misc', () => {
   it('reports health', async () => {
     const server = await startServer();
 
-    expect(await request(server, 'GET', '/health')).toEqual({
+    expect(await request(server, 'GET', '/api/health')).toEqual({
       status: 200,
       body: { status: 'ok' },
     });
+  });
+
+  it('serves nothing outside the api prefix', async () => {
+    const server = await startServer();
+
+    expect((await request(server, 'GET', '/health')).status).toBe(404);
   });
 });

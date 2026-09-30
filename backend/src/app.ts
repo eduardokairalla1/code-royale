@@ -38,9 +38,11 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
   // register the error handlers
   registerErrorHandlers(app);
 
-  // register the routes
-  app.register(systemRoutes);
-  app.register(roomRoutes, { prefix: '/api', roomService });
+  // every route under the prefix, also the public path
+  app.register(async (api) => {
+    api.register(systemRoutes);
+    api.register(roomRoutes, { roomService });
+  }, { prefix: '/api' });
 
   return app;
 }
