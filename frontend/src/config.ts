@@ -25,6 +25,8 @@ const apiOrigin = env.VITE_API_URL ? new URL(env.VITE_API_URL).origin : '';
 // build the config
 export const config = {
   apiUrl: apiOrigin + API_PREFIX,
+  socketOrigin: apiOrigin || undefined,
+  socketPath: `${API_PREFIX}/socket`,
 };
 
 // --- CODE ---
