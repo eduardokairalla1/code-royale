@@ -48,6 +48,7 @@ const envSchema = z.object({
   // code execution
   PISTON_URL: z.url().default('http://localhost:2000'),
   PISTON_TIMEOUT_SECONDS: z.coerce.number().int().positive().default(60),
+  MAX_CODE_LENGTH: z.coerce.number().int().positive().default(64_000),
 
   // languages players may pick, comma separated; all of them when unset
   ENABLED_LANGUAGES: commaList
@@ -79,6 +80,7 @@ export const config = {
   challengesDir: toDirectoryUrl(env.CHALLENGES_DIR),
   pistonUrl: env.PISTON_URL,
   pistonTimeoutMs: env.PISTON_TIMEOUT_SECONDS * 1000,
+  maxCodeLength: env.MAX_CODE_LENGTH,
   enabledLanguages: env.ENABLED_LANGUAGES,
 };
 

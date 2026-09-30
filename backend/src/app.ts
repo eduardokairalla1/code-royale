@@ -5,6 +5,8 @@
 // --- IMPORTS ---
 import { config } from './config.js';
 import { ChallengeService } from './modules/challenge/challenge.service.js';
+import type { CodeExecutor } from './modules/executor/executor.types.js';
+import { PistonExecutor } from './modules/executor/piston.executor.js';
 import { GameService } from './modules/game/game.service.js';
 import { registerGameSocket } from './modules/game/game.socket.js';
 import { pickLanguages } from './modules/language/language.catalog.js';
@@ -13,6 +15,10 @@ import { MemoryRoomStore } from './modules/room/memory-room.store.js';
 import { roomRoutes } from './modules/room/room.routes.js';
 import { RoomService } from './modules/room/room.service.js';
 import { registerRoomSocket } from './modules/room/room.socket.js';
+import { SubmissionService } from './modules/submission/submission.service.js';
+import {
+  registerSubmissionSocket,
+} from './modules/submission/submission.socket.js';
 import { systemRoutes } from './modules/system/system.routes.js';
 import { registerErrorHandlers } from './shared/errors/error-handler.js';
 import { logStarted } from './shared/logging/lifecycle.js';
@@ -30,11 +36,13 @@ import type { FastifyInstance } from 'fastify';
  * What the app can be built with; tests swap in fakes and short timers.
  */
 export interface AppOptions {
+  executor?: CodeExecutor;
   challengeService?: ChallengeService;
   emptyRoomTtlMs?: number;
   reconnectGraceMs?: number;
   maxPlayersPerRoom?: number;
   maxRooms?: number;
+  maxCodeLength?: number;
   enabledLanguages?: string[];
   logger?: boolean;
   logStream?: { write(line: string): void };
@@ -70,6 +78,13 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
     logger: app.log,
   });
 
+  const submissionService = new SubmissionService(
+    roomService,
+    options.executor
+      ?? new PistonExecutor(config.pistonUrl, config.pistonTimeoutMs),
+    app.log,
+  );
+
   const challengeService = options.challengeService
     ?? ChallengeService.load(config.challengesDir);
 
@@ -92,6 +107,7 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
       max_rooms: options.maxRooms ?? config.maxRooms,
       max_players_per_room:
         options.maxPlayersPerRoom ?? config.maxPlayersPerRoom,
+      piston: new URL(config.pistonUrl).origin,
     });
   });
 
@@ -118,6 +134,10 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
 
   registerRoomSocket(io, roomService, app.log);
   registerGameSocket(io, gameService, app.log);
+  registerSubmissionSocket(io, submissionService, app.log, {
+    languageIds: enabledLanguages,
+    maxCodeLength: options.maxCodeLength ?? config.maxCodeLength,
+  });
 
   return app;
 }

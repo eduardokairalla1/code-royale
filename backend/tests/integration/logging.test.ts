@@ -3,6 +3,7 @@
  */
 
 // --- IMPORTS ---
+import { PROGRAMS } from '../helpers/fake-executor.js';
 import { createRoom } from '../helpers/test-server.js';
 import { request } from '../helpers/test-server.js';
 import { sleep } from '../helpers/test-server.js';
@@ -130,6 +131,17 @@ describe('logging', () => {
       players: 1,
     });
 
+    await client.emit('submission:run', {
+      language: 'python',
+      code: PROGRAMS.crash,
+    });
+
+    expect(await logs.find('examples_run', ids)).toMatchObject({
+      language: 'python',
+      statuses: { RUNTIME_ERROR: 1 },
+      executor_ms: expect.any(Number),
+    });
+
     await client.emit('room:leave');
 
     await logs.find('command', { ...ids, command: 'room:leave' });
@@ -138,7 +150,7 @@ describe('logging', () => {
 
     expect(await logs.find('socket', ids)).toMatchObject({
       closed_by: 'leave',
-      commands: 2,
+      commands: 3,
       duration_ms: expect.any(Number),
     });
 
