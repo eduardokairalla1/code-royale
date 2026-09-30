@@ -1,0 +1,80 @@
+.page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-5);
+  padding: var(--space-7) var(--space-4);
+}
+
+.tagline {
+  max-width: 34ch;
+  font-family: var(--font-hand);
+  font-size: 22px;
+  text-align: center;
+  color: var(--ink-soft);
+}
+
+.card {
+  width: 100%;
+  max-width: 400px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.join {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* a marker line with "ou" in the middle */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-family: var(--font-hand);
+  font-size: 20px;
+  color: var(--ink-soft);
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 2px;
+  background: var(--ink);
+  border-radius: 2px;
+  opacity: 0.35;
+  transform: rotate(-0.8deg);
+}
+
+.divider::after {
+  transform: rotate(0.8deg);
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-hand);
+  font-size: 18px;
+  text-align: center;
+  color: var(--ink-soft);
+}
+
+.footer a {
+  color: var(--ink);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+.footer a:hover {
+  color: var(--gem);
+}
