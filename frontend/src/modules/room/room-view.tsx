@@ -163,7 +163,13 @@ export function RoomView({
       <main className={styles.main}>
         {room.status === 'LOBBY'
           ? (
-            <Lobby room={room} selfId={session.playerId} />
+            <Lobby
+              room={room}
+              selfId={session.playerId}
+              onStart={async () => {
+                await connection.send('game:start');
+              }}
+            />
           )
           : (
             <Suspense fallback={<Scribble label="Preparing the round..." />}>
