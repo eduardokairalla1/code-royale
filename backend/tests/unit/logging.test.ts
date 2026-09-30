@@ -64,18 +64,18 @@ describe('WideEvent', () => {
     const logger = fakeLogger();
     const event = new WideEvent().set({ room_code: 'ABCDE' });
 
-    event.count('retries');
-    event.count('retries');
-    event.emit(logger, 'request');
+    event.count('commands');
+    event.count('commands');
+    event.emit(logger, 'socket');
 
     expect(logger.info).toHaveBeenCalledOnce();
     expect(logger.info).toHaveBeenCalledWith({
-      event: 'request',
+      event: 'socket',
       outcome: 'ok',
       room_code: 'ABCDE',
-      retries: 2,
+      commands: 2,
       duration_ms: expect.any(Number),
-    }, 'request');
+    }, 'socket');
   });
 
   it('takes the level of the error it failed with', () => {

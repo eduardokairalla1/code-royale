@@ -1,15 +1,66 @@
 /**
- * Room helpers: room codes.
+ * Room helpers: public views and room codes.
  */
 
 // --- IMPORTS ---
+import type { Player } from '../../src/modules/room/room.types.js';
+import type { Room } from '../../src/modules/room/room.types.js';
+import { createPlayer } from '../../src/modules/room/room.utils.js';
 import { normalizeRoomCode } from '../../src/modules/room/room.utils.js';
+import { toPublicRoom } from '../../src/modules/room/room.utils.js';
 import { generateRoomCode } from '../../src/shared/ids.js';
 import { describe } from 'vitest';
 import { expect } from 'vitest';
 import { it } from 'vitest';
 
 // --- CODE ---
+/**
+ * Build a room with the given players, in join order.
+ *
+ * @param {Player[]} players The players.
+ *
+ * @returns {Room} The room, hosted by the first player.
+ */
+function roomWith(players: Player[]): Room {
+  return {
+    code: 'ABCDE',
+    hostId: players[0]?.id ?? '',
+    status: 'LOBBY',
+    players: new Map(players.map((player) => [player.id, player])),
+    createdAt: 0,
+  };
+}
+
+/**
+ * Build a player, connected or not.
+ *
+ * @param {string} name The player's name.
+ * @param {boolean} connected Whether they have a socket.
+ *
+ * @returns {Player} The player.
+ */
+function player(name: string, connected: boolean): Player {
+  return { ...createPlayer(name), socketId: connected ? `s-${name}` : null };
+}
+
+describe('toPublicRoom', () => {
+
+  it('never exposes tokens or socket ids', () => {
+    const ana = player('Ana', true);
+    const json = JSON.stringify(toPublicRoom(roomWith([ana])));
+
+    expect(json).not.toContain(ana.token);
+    expect(json).not.toContain('s-Ana');
+  });
+
+  it('flags the host and who is connected', () => {
+    const room = roomWith([player('Ana', true), player('Bob', false)]);
+
+    expect(toPublicRoom(room).players.map((p) => [p.isHost, p.connected]))
+      .toEqual([[true, true], [false, false]]);
+  });
+});
+
 describe('room codes', () => {
 
   it('are 5 unambiguous characters', () => {

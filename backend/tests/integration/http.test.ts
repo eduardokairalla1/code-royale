@@ -22,7 +22,7 @@ describe('rooms', () => {
     expect(status).toBe(201);
     expect(body.room.code).toMatch(/^[A-Z0-9]{5}$/);
     expect(body.room.players).toEqual([
-      { id: body.player.id, name: 'Ana', isHost: true },
+      { id: body.player.id, name: 'Ana', isHost: true, connected: false },
     ]);
     expect(body.player.token).toEqual(expect.any(String));
   });

@@ -16,6 +16,7 @@ export interface Player {
   name: string;
   token: string;
   joinedAt: number;
+  socketId: string | null;
 }
 
 /**
@@ -36,6 +37,7 @@ export interface PublicPlayer {
   id: string;
   name: string;
   isHost: boolean;
+  connected: boolean;
 }
 
 /**

@@ -17,8 +17,10 @@ export const Event = {
   // one per http request
   Request: 'request',
 
-  // sockets
+  // sockets: refused, connected, and a summary once closed
   SocketRefused: 'socket_refused',
+  SocketConnected: 'socket_connected',
+  Socket: 'socket',
 
   // rooms
   RoomCreated: 'room_created',

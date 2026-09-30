@@ -1,5 +1,5 @@
 /**
- * Room rules: create, join and look up rooms.
+ * Room rules: create, join, look up rooms and track who is connected.
  */
 
 // --- IMPORTS ---
@@ -43,9 +43,15 @@ export interface RoomServiceOptions {
 }
 
 /**
+ * Called whenever a room's public state changes.
+ */
+export type RoomChangeListener = (room: Room) => void;
+
+/**
  * Room rules, shared by the http routes and the socket handlers.
  */
 export class RoomService {
+  private readonly listeners: RoomChangeListener[] = [];
 
   /**
    * Create the service.
@@ -57,6 +63,17 @@ export class RoomService {
     private readonly store: RoomStore,
     private readonly options: RoomServiceOptions,
   ) {}
+
+  /**
+   * Subscribe to room state changes.
+   *
+   * @param {RoomChangeListener} listener Called with the changed room.
+   *
+   * @returns {void}
+   */
+  onRoomChanged(listener: RoomChangeListener): void {
+    this.listeners.push(listener);
+  }
 
   /**
    * Create a room with the given player as host.
@@ -85,7 +102,7 @@ export class RoomService {
       createdAt: Date.now(),
     };
 
-    await this.store.save(room);
+    await this.update(room);
 
     log(this.options.logger, 'info', Event.RoomCreated, {
       room_code: room.code,
@@ -129,7 +146,7 @@ export class RoomService {
 
     room.players.set(player.id, player);
 
-    await this.store.save(room);
+    await this.update(room);
 
     log(this.options.logger, 'info', Event.PlayerJoined, {
       room_code: room.code,
@@ -163,6 +180,20 @@ export class RoomService {
   }
 
   /**
+   * Save a changed room and notify listeners.
+   *
+   * @param {Room} room The changed room.
+   *
+   * @returns {Promise<void>}
+   */
+  async update(room: Room): Promise<void> {
+
+    await this.store.save(room);
+
+    this.notify(room);
+  }
+
+  /**
    * Find the player of a room that owns the given token.
    *
    * @param {string} code The room code, in any case.
@@ -186,6 +217,79 @@ export class RoomService {
     }
 
     return { room, player };
+  }
+
+  /**
+   * Bind a socket to a player, replacing the socket they had before.
+   *
+   * @param {string} code The room code.
+   * @param {string} playerId The player's id.
+   * @param {string} socketId The new socket's id.
+   *
+   * @returns {Promise<string | null>} The replaced socket id, if any.
+   *
+   * @throws {InvalidPlayerTokenError} When the player is no longer there.
+   */
+  async connect(
+    code: string,
+    playerId: string,
+    socketId: string,
+  ): Promise<string | null> {
+
+    const room = await this.store.get(code);
+    const player = room?.players.get(playerId);
+
+    // removed between authentication and connection
+    if (!room || !player) {
+      throw new InvalidPlayerTokenError({ code, playerId });
+    }
+
+    const replacedSocketId = player.socketId;
+
+    player.socketId = socketId;
+
+    await this.update(room);
+
+    return replacedSocketId;
+  }
+
+  /**
+   * Mark a player as disconnected, starting their grace period.
+   *
+   * @param {string} code The room code.
+   * @param {string} playerId The player's id.
+   * @param {string} socketId The socket that disconnected.
+   *
+   * @returns {Promise<void>}
+   */
+  async disconnect(
+    code: string,
+    playerId: string,
+    socketId: string,
+  ): Promise<void> {
+
+    const room = await this.store.get(code);
+    const player = room?.players.get(playerId);
+
+    // stale socket: the player left or is already on another socket
+    if (!room || !player || player.socketId !== socketId) {
+      return;
+    }
+
+    player.socketId = null;
+
+    await this.update(room);
+  }
+
+  /**
+   * Tell every listener that a room changed.
+   *
+   * @param {Room} room The changed room.
+   *
+   * @returns {void}
+   */
+  private notify(room: Room): void {
+    this.listeners.forEach((listener) => listener(room));
   }
 
   /**

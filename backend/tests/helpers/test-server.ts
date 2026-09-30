@@ -5,6 +5,7 @@
 // --- IMPORTS ---
 import type { AppOptions } from '../../src/app.js';
 import { buildApp } from '../../src/app.js';
+import type { PublicRoom } from '../../src/modules/room/room.types.js';
 import { SOCKET_PATH } from '../../src/socket.js';
 import type { FastifyInstance } from 'fastify';
 import { io } from 'socket.io-client';
@@ -106,6 +107,28 @@ export async function createRoom(
 }
 
 /**
+ * Join a room through the http api.
+ *
+ * @param {TestServer} server The server.
+ * @param {string} code The room code.
+ * @param {string} name The player's name.
+ *
+ * @returns {Promise<Identity>} The room code and the player's identity.
+ */
+export async function joinRoom(
+  server: TestServer,
+  code: string,
+  name: string,
+): Promise<Identity> {
+
+  const { body } = await request(server, 'POST', `/api/rooms/${code}/join`, {
+    name,
+  });
+
+  return { code, ...toIdentity(body) };
+}
+
+/**
  * Take the player's id and token out of a join response.
  *
  * @param {any} body The response body.
@@ -117,9 +140,10 @@ function toIdentity(body: any): { playerId: string; token: string } {
 }
 
 /**
- * A socket client that records how its connection went.
+ * A socket client that records every room state it receives.
  */
 export class TestClient {
+  readonly states: PublicRoom[] = [];
   connectError: any = null;
   disconnectReason: string | null = null;
 
@@ -129,6 +153,7 @@ export class TestClient {
    * @param {Socket} socket The socket.io client socket.
    */
   private constructor(readonly socket: Socket) {
+    socket.on('room:state', (room: PublicRoom) => this.states.push(room));
     socket.on('connect_error', (error: any) => {
       this.connectError = error.data;
     });
@@ -183,6 +208,54 @@ export class TestClient {
       roomCode: identity.code,
       token: identity.token,
     });
+  }
+
+  /**
+   * The last room state received.
+   *
+   * @returns {PublicRoom | undefined} The state, if any arrived.
+   */
+  get state(): PublicRoom | undefined {
+    return this.states.at(-1);
+  }
+
+  /**
+   * Wait until a received room state matches.
+   *
+   * @param {(room: PublicRoom) => boolean} predicate What to wait for.
+   * @param {number} timeoutMs How long to wait.
+   *
+   * @returns {Promise<PublicRoom>} The first matching state.
+   *
+   * @throws {Error} When no state matches in time.
+   */
+  async waitFor(
+    predicate: (room: PublicRoom) => boolean,
+    timeoutMs = 5000,
+  ): Promise<PublicRoom> {
+
+    const deadline = Date.now() + timeoutMs;
+
+    while (Date.now() < deadline) {
+      const match = this.states.find(predicate);
+
+      if (match) {
+        return match;
+      }
+
+      await sleep(20);
+    }
+
+    throw new Error(`No matching state in ${timeoutMs}ms`);
+  }
+
+  /**
+   * Forget the states received so far.
+   *
+   * @returns {void}
+   */
+  clear(): void {
+    this.states.length = 0;
   }
 }
 

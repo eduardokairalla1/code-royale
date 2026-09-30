@@ -27,6 +27,7 @@ export function toPublicRoom(room: Room): PublicRoom {
       id: player.id,
       name: player.name,
       isHost: player.id === room.hostId,
+      connected: player.socketId !== null,
     })),
   };
 }
@@ -45,6 +46,7 @@ export function createPlayer(name: string): Player {
     name,
     token: generateToken(),
     joinedAt: Date.now(),
+    socketId: null,
   };
 }
 
