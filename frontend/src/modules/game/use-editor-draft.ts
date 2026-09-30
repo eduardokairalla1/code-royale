@@ -14,6 +14,10 @@ import { useEffect } from 'react';
 import { useMemo } from 'react';
 import { useState } from 'react';
 
+// --- GLOBALS ---
+// how long typing must pause before the server gets the draft
+const SYNC_DELAY_MS = 400;
+
 // --- CODE ---
 /**
  * What the editor draft exposes.
@@ -25,6 +29,8 @@ export interface EditorDraft {
   template: string;
   setCode: (code: string) => void;
   setLanguage: (id: string) => void;
+  // send the latest draft right away
+  flush: () => void;
 }
 
 /**
@@ -32,12 +38,14 @@ export interface EditorDraft {
  *
  * @param {string} roundKey Unique per room and round.
  * @param {Language[] | null} languages The languages, null while loading.
+ * @param {(draft: Draft) => Promise<unknown>} sync Sends it to the server.
  *
  * @returns {EditorDraft} The draft and its setters.
  */
 export function useEditorDraft(
   roundKey: string,
   languages: Language[] | null,
+  sync: (draft: Draft) => Promise<unknown>,
 ): EditorDraft {
 
   const storageKey = `draft:${roundKey}`;
@@ -52,12 +60,23 @@ export function useEditorDraft(
     return language.id === draft?.language;
   })?.template ?? '';
 
-  // keep it in the browser, so a reload loses nothing
+  // keep it in the browser and, once typing pauses, on the server
   useEffect(() => {
-    if (stored) {
-      writeStored(storageKey, stored);
+
+    if (!stored) {
+      return;
     }
-  }, [stored, storageKey]);
+
+    writeStored(storageKey, stored);
+
+    const timer = window.setTimeout(() => {
+      sync(stored).catch(() => {
+        // the next keystroke tries again
+      });
+    }, SYNC_DELAY_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [stored, storageKey, sync]);
 
   const setCode = useCallback((code: string) => {
     setStored((current) => {
@@ -78,7 +97,15 @@ export function useEditorDraft(
     setStored({ language: id, code: language.template });
   }, [languages]);
 
-  return { draft, template, setCode, setLanguage };
+  const flush = useCallback(() => {
+    if (draft) {
+      sync(draft).catch(() => {
+        // too late to retry: the server keeps the last one it got
+      });
+    }
+  }, [draft, sync]);
+
+  return { draft, template, setCode, setLanguage, flush };
 }
 
 /**

@@ -58,6 +58,7 @@ export function GameScreen({
       room={room}
       selfId={selfId}
       clockOffset={clockOffset}
+      send={send}
     />
   );
 }
