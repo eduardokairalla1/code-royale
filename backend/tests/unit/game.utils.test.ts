@@ -1,11 +1,12 @@
 /**
- * Rounds: creation, ranking and summary.
+ * Rounds: creation, ranking and when everyone is done.
  */
 
 // --- IMPORTS ---
 import type { Challenge } from '../../src/modules/challenge/challenge.types.js';
 import type { PlayerResult } from '../../src/modules/game/game.types.js';
 import { createRound } from '../../src/modules/game/game.utils.js';
+import { everyoneJudged } from '../../src/modules/game/game.utils.js';
 import { roundSummary } from '../../src/modules/game/game.utils.js';
 import { toPublicRound } from '../../src/modules/game/game.utils.js';
 import { describe } from 'vitest';
@@ -101,6 +102,27 @@ describe('toPublicRound', () => {
     const ranked = toPublicRound(round).results.map((r) => r.playerId);
 
     expect(ranked).toEqual(['first', 'second']);
+  });
+});
+
+describe('everyoneJudged', () => {
+
+  it('is false while a submission is only submitted, not judged', () => {
+    const round = createRound(CHALLENGE, ['a']);
+    round.results.set('a', result({ submittedAt: 1 }));
+
+    expect(everyoneJudged(round)).toBe(false);
+  });
+
+  it('is true once every submission is judged', () => {
+    const round = createRound(CHALLENGE, ['a']);
+    round.results.set('a', result({ submittedAt: 1, passed: 0, total: 1 }));
+
+    expect(everyoneJudged(round)).toBe(true);
+  });
+
+  it('is false for a round with nobody left', () => {
+    expect(everyoneJudged(createRound(CHALLENGE, []))).toBe(false);
   });
 });
 

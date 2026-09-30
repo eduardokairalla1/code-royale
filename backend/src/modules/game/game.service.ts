@@ -3,6 +3,7 @@
  */
 
 // --- IMPORTS ---
+import { describeError } from '../../shared/logging/error-fields.js';
 import { Event } from '../../shared/logging/events.js';
 import { log } from '../../shared/logging/events.js';
 import { TimerRegistry } from '../../shared/timers.js';
@@ -12,12 +13,13 @@ import type { SubmissionService } from '../submission/submission.service.js';
 import { GameAlreadyStartedError } from './game.errors.js';
 import { GameNotFinishedError } from './game.errors.js';
 import { createRound } from './game.utils.js';
+import { everyoneJudged } from './game.utils.js';
 import { roundSummary } from './game.utils.js';
 import type { FastifyBaseLogger } from 'fastify';
 
 // --- GLOBALS ---
-// why a round ended: the clock
-type FinishReason = 'time_up';
+// why a round ended: the clock, or nobody left to judge
+type FinishReason = 'time_up' | 'everyone_judged';
 
 // --- CODE ---
 /**
@@ -26,13 +28,16 @@ type FinishReason = 'time_up';
 export class GameService {
   private readonly roundTimers: TimerRegistry;
 
+  // rooms whose round is being closed, so it only happens once
+  private readonly finishing = new Set<string>();
+
   /**
    * Create the service.
    *
    * @param {RoomService} roomService The room rules.
    * @param {ChallengeService} challengeService The challenge catalog.
    * @param {SubmissionService} submissionService Judges the submissions.
-   * @param {FastifyBaseLogger} logger Where rounds are logged.
+   * @param {FastifyBaseLogger} logger Where failures are logged.
    */
   constructor(
     private readonly roomService: RoomService,
@@ -41,6 +46,19 @@ export class GameService {
     private readonly logger: FastifyBaseLogger,
   ) {
     this.roundTimers = new TimerRegistry(logger, 'round_clock');
+
+    // everyone submitted and got judged: no reason to wait for the clock
+    this.roomService.onRoomChanged((room) => {
+      if (room.status === 'PLAYING' && room.round
+        && everyoneJudged(room.round)) {
+        this.finish(room.code, 'everyone_judged').catch((error: unknown) => {
+          log(this.logger, 'error', Event.RoundFinishFailed, {
+            room_code: room.code,
+            ...describeError(error).fields,
+          });
+        });
+      }
+    });
   }
 
   /**
@@ -132,29 +150,41 @@ export class GameService {
    */
   private async finish(code: string, reason: FinishReason): Promise<void> {
 
-    this.roundTimers.clear(code);
-
-    // time is up for everyone: submit what they have
-    await this.submissionService.submitDrafts(code);
-
-    const room = await this.roomService.find(code);
-
-    // room gone or round already over
-    if (!room || room.status !== 'PLAYING') {
+    // already being closed, by the clock or by the last submission
+    if (this.finishing.has(code)) {
       return;
     }
 
-    room.status = 'FINISHED';
+    this.finishing.add(code);
 
-    await this.roomService.update(room);
+    try {
+      this.roundTimers.clear(code);
 
-    // how the round went, once every submission is judged
-    if (room.round) {
-      log(this.logger, 'info', Event.RoundFinished, {
-        room_code: room.code,
-        reason,
-        ...roundSummary(room.round),
-      });
+      // time is up for everyone: submit what they have
+      await this.submissionService.submitDrafts(code);
+
+      const room = await this.roomService.find(code);
+
+      // room gone or round already over
+      if (!room || room.status !== 'PLAYING') {
+        return;
+      }
+
+      room.status = 'FINISHED';
+
+      await this.roomService.update(room);
+
+      // how the round went, once every submission is judged
+      if (room.round) {
+        log(this.logger, 'info', Event.RoundFinished, {
+          room_code: room.code,
+          reason,
+          ...roundSummary(room.round),
+        });
+      }
+
+    } finally {
+      this.finishing.delete(code);
     }
   }
 }
