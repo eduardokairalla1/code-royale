@@ -14,6 +14,15 @@ const openServers: TestServer[] = [];
 
 // --- CODE ---
 /**
+ * A player's identity, as the http api hands it out.
+ */
+export interface Identity {
+  code: string;
+  playerId: string;
+  token: string;
+}
+
+/**
  * A running server.
  */
 export interface TestServer {
@@ -72,6 +81,35 @@ export async function request(
   });
 
   return { status: response.status, body: await response.json() };
+}
+
+/**
+ * Create a room through the http api.
+ *
+ * @param {TestServer} server The server.
+ * @param {string} name The host's name.
+ *
+ * @returns {Promise<Identity>} The room code and the host's identity.
+ */
+export async function createRoom(
+  server: TestServer,
+  name: string,
+): Promise<Identity> {
+
+  const { body } = await request(server, 'POST', '/api/rooms', { name });
+
+  return { code: body.room.code, ...toIdentity(body) };
+}
+
+/**
+ * Take the player's id and token out of a join response.
+ *
+ * @param {any} body The response body.
+ *
+ * @returns {{ playerId: string, token: string }} The identity.
+ */
+function toIdentity(body: any): { playerId: string; token: string } {
+  return { playerId: body.player.id, token: body.player.token };
 }
 
 // close whatever each test opened

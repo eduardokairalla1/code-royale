@@ -3,6 +3,7 @@
  */
 
 // --- IMPORTS ---
+import { config } from './config.js';
 import { MemoryRoomStore } from './modules/room/memory-room.store.js';
 import { roomRoutes } from './modules/room/room.routes.js';
 import { RoomService } from './modules/room/room.service.js';
@@ -16,6 +17,7 @@ import type { FastifyInstance } from 'fastify';
  * What the app can be built with; tests swap in fakes and short timers.
  */
 export interface AppOptions {
+  maxPlayersPerRoom?: number;
   logger?: boolean;
 }
 
@@ -33,7 +35,9 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
   });
 
   // wire the services
-  const roomService = new RoomService(new MemoryRoomStore());
+  const roomService = new RoomService(new MemoryRoomStore(), {
+    maxPlayersPerRoom: options.maxPlayersPerRoom ?? config.maxPlayersPerRoom,
+  });
 
   // register the error handlers
   registerErrorHandlers(app);

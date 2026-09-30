@@ -15,7 +15,6 @@ import { createPlayer } from './room.utils.js';
 import { normalizeRoomCode } from './room.utils.js';
 
 // --- GLOBALS ---
-const MAX_PLAYERS_PER_ROOM = 20;
 const MAX_ROOM_CODE_ATTEMPTS = 10;
 
 // --- CODE ---
@@ -28,6 +27,13 @@ export interface JoinResult {
 }
 
 /**
+ * Settings of the room service.
+ */
+export interface RoomServiceOptions {
+  maxPlayersPerRoom: number;
+}
+
+/**
  * Room rules, shared by the http routes and the socket handlers.
  */
 export class RoomService {
@@ -36,8 +42,12 @@ export class RoomService {
    * Create the service.
    *
    * @param {RoomStore} store Where rooms are kept.
+   * @param {RoomServiceOptions} options Settings.
    */
-  constructor(private readonly store: RoomStore) {}
+  constructor(
+    private readonly store: RoomStore,
+    private readonly options: RoomServiceOptions,
+  ) {}
 
   /**
    * Create a room with the given player as host.
@@ -85,7 +95,7 @@ export class RoomService {
     }
 
     // room reached the player limit
-    if (room.players.size >= MAX_PLAYERS_PER_ROOM) {
+    if (room.players.size >= this.options.maxPlayersPerRoom) {
       throw new RoomFullError({
         code: room.code,
         players: room.players.size,

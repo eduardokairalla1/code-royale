@@ -9,8 +9,13 @@ import { z } from 'zod';
 // --- GLOBALS ---
 // define the schema for the env vars we expect
 const envSchema = z.object({
+
+  // general
   PORT: z.coerce.number().int().positive().default(3000),
   HOST: z.string().min(1).default('0.0.0.0'),
+
+  // rooms
+  MAX_PLAYERS_PER_ROOM: z.coerce.number().int().positive().default(20),
 });
 
 // load the .env file into process.env before reading anything
@@ -23,6 +28,7 @@ const env = parseEnv();
 export const config = {
   port: env.PORT,
   host: env.HOST,
+  maxPlayersPerRoom: env.MAX_PLAYERS_PER_ROOM,
 };
 
 // --- CODE ---
