@@ -6,6 +6,7 @@
 import type { AppOptions } from '../../src/app.js';
 import { buildApp } from '../../src/app.js';
 import type { PublicRoom } from '../../src/modules/room/room.types.js';
+import type { CommandResponse } from '../../src/shared/socket-command.js';
 import { SOCKET_PATH } from '../../src/socket.js';
 import type { FastifyInstance } from 'fastify';
 import { io } from 'socket.io-client';
@@ -247,6 +248,28 @@ export class TestClient {
     }
 
     throw new Error(`No matching state in ${timeoutMs}ms`);
+  }
+
+  /**
+   * Send a command and wait for its acknowledgement.
+   *
+   * @param {string} event The event name.
+   * @param {unknown} payload The payload, if the command takes one.
+   *
+   * @returns {Promise<any>} The command response.
+   */
+  emit(event: string, payload?: unknown): Promise<CommandResponse & any> {
+
+    return new Promise((resolve) => {
+
+      // commands without payload take the ack as their only argument
+      if (payload === undefined) {
+        this.socket.emit(event, resolve);
+        return;
+      }
+
+      this.socket.emit(event, payload, resolve);
+    });
   }
 
   /**

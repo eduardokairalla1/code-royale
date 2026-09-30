@@ -14,8 +14,9 @@ export const Event = {
   StartFailed: 'start_failed',
   Stopped: 'stopped',
 
-  // one per http request
+  // one per http request and per socket command
   Request: 'request',
+  Command: 'command',
 
   // sockets: refused, connected, and a summary once closed
   SocketRefused: 'socket_refused',
@@ -25,6 +26,7 @@ export const Event = {
   // rooms
   RoomCreated: 'room_created',
   PlayerJoined: 'player_joined',
+  PlayerLeft: 'player_left',
 } as const;
 
 // --- CODE ---

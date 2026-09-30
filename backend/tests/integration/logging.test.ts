@@ -128,10 +128,14 @@ describe('logging', () => {
       .toMatchObject({ players: 2, status: 'LOBBY' });
     await logs.find('socket_connected', ids);
 
-    client.socket.disconnect();
+    await client.emit('room:leave');
+
+    await logs.find('command', { ...ids, command: 'room:leave' });
+    await logs.find('player_left', { ...ids, reason: 'leave' });
 
     expect(await logs.find('socket', ids)).toMatchObject({
-      reason: 'client namespace disconnect',
+      closed_by: 'leave',
+      commands: 1,
       duration_ms: expect.any(Number),
     });
 

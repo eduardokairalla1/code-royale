@@ -1,5 +1,5 @@
 /**
- * Presence: connections and reconnections.
+ * Presence: connections, reconnections and leaving.
  */
 
 // --- IMPORTS ---
@@ -83,5 +83,22 @@ describe('reconnecting', () => {
 
     expect(oldTab.disconnectReason).toBe('io server disconnect');
     expect(roster(await newTab.waitFor(() => true))).toBe('Ana*+');
+  });
+});
+
+describe('leaving', () => {
+
+  it('removes the player and closes their socket', async () => {
+    const server = await startServer();
+    const ana = await createRoom(server, 'Ana');
+    const bob = await joinRoom(server, ana.code, 'Bob');
+    const anaClient = await TestClient.join(server, ana);
+    const bobClient = await TestClient.join(server, bob);
+
+    expect(await bobClient.emit('room:leave')).toEqual({ ok: true });
+    await anaClient.waitFor((room) => roster(room) === 'Ana*+');
+    await sleep(50);
+
+    expect(bobClient.disconnectReason).toBe('io server disconnect');
   });
 });

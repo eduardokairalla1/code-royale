@@ -23,6 +23,9 @@ import type { FastifyBaseLogger } from 'fastify';
 // --- GLOBALS ---
 const MAX_ROOM_CODE_ATTEMPTS = 10;
 
+// why a player left: on their own
+type LeaveReason = 'leave';
+
 // --- CODE ---
 /**
  * A room together with the player that just entered it.
@@ -277,6 +280,52 @@ export class RoomService {
     }
 
     player.socketId = null;
+
+    await this.update(room);
+  }
+
+  /**
+   * Remove a player from a room right away.
+   *
+   * @param {string} code The room code.
+   * @param {string} playerId The player's id.
+   *
+   * @returns {Promise<void>}
+   */
+  async leave(code: string, playerId: string): Promise<void> {
+    await this.removePlayer(code, playerId, 'leave');
+  }
+
+  /**
+   * Remove a player from a room.
+   *
+   * @param {string} code The room code.
+   * @param {string} playerId The player's id.
+   * @param {LeaveReason} reason Why they are removed.
+   *
+   * @returns {Promise<void>}
+   */
+  private async removePlayer(
+    code: string,
+    playerId: string,
+    reason: LeaveReason,
+  ): Promise<void> {
+
+    const room = await this.store.get(code);
+
+    // already gone
+    if (!room || !room.players.has(playerId)) {
+      return;
+    }
+
+    room.players.delete(playerId);
+
+    log(this.options.logger, 'info', Event.PlayerLeft, {
+      room_code: room.code,
+      player_id: playerId,
+      reason,
+      players: room.players.size,
+    });
 
     await this.update(room);
   }

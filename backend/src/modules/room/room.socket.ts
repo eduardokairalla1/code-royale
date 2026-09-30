@@ -1,5 +1,5 @@
 /**
- * Room socket handlers: authentication and presence.
+ * Room socket handlers: authentication, presence and leaving.
  */
 
 // --- IMPORTS ---
@@ -8,6 +8,7 @@ import { describeError } from '../../shared/logging/error-fields.js';
 import { Event } from '../../shared/logging/events.js';
 import { log } from '../../shared/logging/events.js';
 import { WideEvent } from '../../shared/logging/wide-event.js';
+import { runCommand } from '../../shared/socket-command.js';
 import { parseInput } from '../../shared/validation.js';
 import type { AppServer } from '../../socket.js';
 import type { AppSocket } from '../../socket.js';
@@ -61,6 +62,7 @@ export function registerRoomSocket(
         socket_id: socket.id,
         room_code: room.code,
         player_id: player.id,
+        commands: 0,
       });
 
       next();
@@ -102,6 +104,19 @@ async function handleConnection(
 ): Promise<void> {
 
   const { roomCode, playerId, event } = socket.data;
+
+  // listen before any await, so no event is missed
+  socket.on('room:leave', async (ack) => {
+    const left = await runCommand(socket, 'room:leave', ack, logger, () => {
+      return roomService.leave(roomCode, playerId);
+    });
+
+    // gone from the room: close the socket too
+    if (left) {
+      event.set({ closed_by: 'leave' });
+      socket.disconnect(true);
+    }
+  });
 
   // reason is socket.io's, e.g. "transport close" or "ping timeout"
   socket.on('disconnect', async (reason) => {

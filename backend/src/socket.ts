@@ -6,6 +6,7 @@
 import { config } from './config.js';
 import type { WideEvent } from './shared/logging/wide-event.js';
 import type { PublicRoom } from './modules/room/room.types.js';
+import type { CommandAck } from './shared/socket-command.js';
 import type { FastifyInstance } from 'fastify';
 import type { DefaultEventsMap } from 'socket.io';
 import { Server } from 'socket.io';
@@ -27,7 +28,9 @@ export interface ServerToClientEvents {
 /**
  * Events clients send to the server.
  */
-export interface ClientToServerEvents {}
+export interface ClientToServerEvents {
+  'room:leave': (ack?: CommandAck) => void;
+}
 
 /**
  * Data attached to a socket once it is authenticated.

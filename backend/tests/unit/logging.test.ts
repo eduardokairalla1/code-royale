@@ -83,7 +83,7 @@ describe('WideEvent', () => {
     const event = new WideEvent('debug');
 
     event.fail(new RoomNotFoundError());
-    event.emit(logger, 'request');
+    event.emit(logger, 'command');
 
     expect(logger.debug).not.toHaveBeenCalled();
     expect(logger.warn).toHaveBeenCalledWith(
@@ -91,7 +91,7 @@ describe('WideEvent', () => {
         outcome: 'error',
         error: 'room_not_found_error',
       }),
-      'request',
+      'command',
     );
   });
 });
