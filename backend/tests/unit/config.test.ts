@@ -38,13 +38,23 @@ describe('config', () => {
     const config = await loadConfig({});
 
     expect(config).toMatchObject({
+      corsOrigins: ['http://localhost:5173'],
       maxPlayersPerRoom: 20,
       maxRooms: 1000,
     });
   });
 
+  it('splits comma separated lists, ignoring spaces and blanks', async () => {
+    const config = await loadConfig({
+      CORS_ORIGIN: 'https://a.com, https://b.br,,',
+    });
+
+    expect(config.corsOrigins).toEqual(['https://a.com', 'https://b.br']);
+  });
+
   it.each([
     [{ MAX_PLAYERS_PER_ROOM: '0' }, /MAX_PLAYERS_PER_ROOM/],
+    [{ CORS_ORIGIN: ' , ' }, /CORS_ORIGIN/],
   ])('refuses %j on boot', async (env, reason) => {
     await expect(loadConfig(env)).rejects.toThrow(reason);
   });

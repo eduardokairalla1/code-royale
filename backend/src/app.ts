@@ -9,6 +9,7 @@ import { roomRoutes } from './modules/room/room.routes.js';
 import { RoomService } from './modules/room/room.service.js';
 import { systemRoutes } from './modules/system/system.routes.js';
 import { registerErrorHandlers } from './shared/errors/error-handler.js';
+import cors from '@fastify/cors';
 import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
 
@@ -40,6 +41,9 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
     maxPlayersPerRoom: options.maxPlayersPerRoom ?? config.maxPlayersPerRoom,
     maxRooms: options.maxRooms ?? config.maxRooms,
   });
+
+  // let the frontend call the api from another origin
+  app.register(cors, { origin: config.corsOrigins });
 
   // register the error handlers
   registerErrorHandlers(app);

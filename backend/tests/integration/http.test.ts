@@ -149,4 +149,15 @@ describe('misc', () => {
 
     expect((await request(server, 'GET', '/health')).status).toBe(404);
   });
+
+  it('allows the configured frontend origin', async () => {
+    const server = await startServer();
+
+    const response = await fetch(`${server.url}/health`, {
+      headers: { Origin: 'http://localhost:5173' },
+    });
+
+    expect(response.headers.get('access-control-allow-origin'))
+      .toBe('http://localhost:5173');
+  });
 });

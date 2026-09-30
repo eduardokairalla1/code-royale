@@ -7,12 +7,22 @@ import { config as loadEnv } from 'dotenv';
 import { z } from 'zod';
 
 // --- GLOBALS ---
+// "a, b,,c" -> ["a", "b", "c"]
+const commaList = z.string().transform((value) => {
+  return value.split(',').map((item) => item.trim()).filter(Boolean);
+});
+
 // define the schema for the env vars we expect
 const envSchema = z.object({
 
   // general
   PORT: z.coerce.number().int().positive().default(3000),
   HOST: z.string().min(1).default('0.0.0.0'),
+
+  // security: every origin allowed to call the api, comma separated
+  CORS_ORIGIN: commaList
+    .pipe(z.array(z.string()).min(1))
+    .default(['http://localhost:5173']),
 
   // rooms
   MAX_PLAYERS_PER_ROOM: z.coerce.number().int().positive().default(20),
@@ -29,6 +39,7 @@ const env = parseEnv();
 export const config = {
   port: env.PORT,
   host: env.HOST,
+  corsOrigins: env.CORS_ORIGIN,
   maxPlayersPerRoom: env.MAX_PLAYERS_PER_ROOM,
   maxRooms: env.MAX_ROOMS,
 };
