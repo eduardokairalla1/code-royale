@@ -3,6 +3,7 @@
  */
 
 // --- GLOBALS ---
+// NOTE: each id needs a runtime in piston.executor.ts and a package.
 export const LANGUAGES: Language[] = [
   {
     id: 'python',
