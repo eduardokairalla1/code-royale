@@ -8,6 +8,7 @@ import { log } from '../../shared/logging/events.js';
 import { TimerRegistry } from '../../shared/timers.js';
 import type { ChallengeService } from '../challenge/challenge.service.js';
 import type { RoomService } from '../room/room.service.js';
+import type { SubmissionService } from '../submission/submission.service.js';
 import { GameAlreadyStartedError } from './game.errors.js';
 import { GameNotFinishedError } from './game.errors.js';
 import { createRound } from './game.utils.js';
@@ -30,11 +31,13 @@ export class GameService {
    *
    * @param {RoomService} roomService The room rules.
    * @param {ChallengeService} challengeService The challenge catalog.
+   * @param {SubmissionService} submissionService Judges the submissions.
    * @param {FastifyBaseLogger} logger Where rounds are logged.
    */
   constructor(
     private readonly roomService: RoomService,
     private readonly challengeService: ChallengeService,
+    private readonly submissionService: SubmissionService,
     private readonly logger: FastifyBaseLogger,
   ) {
     this.roundTimers = new TimerRegistry(logger, 'round_clock');
@@ -120,7 +123,7 @@ export class GameService {
   }
 
   /**
-   * End a running round and show the results.
+   * End a running round: judge the missing drafts, then show results.
    *
    * @param {string} code The room code.
    * @param {FinishReason} reason Why it ends now.
@@ -130,6 +133,9 @@ export class GameService {
   private async finish(code: string, reason: FinishReason): Promise<void> {
 
     this.roundTimers.clear(code);
+
+    // time is up for everyone: submit what they have
+    await this.submissionService.submitDrafts(code);
 
     const room = await this.roomService.find(code);
 
@@ -142,7 +148,7 @@ export class GameService {
 
     await this.roomService.update(room);
 
-    // how the round went
+    // how the round went, once every submission is judged
     if (room.round) {
       log(this.logger, 'info', Event.RoundFinished, {
         room_code: room.code,

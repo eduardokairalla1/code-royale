@@ -93,6 +93,7 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
   const gameService = new GameService(
     roomService,
     challengeService,
+    submissionService,
     app.log,
   );
 
