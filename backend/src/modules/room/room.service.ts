@@ -463,7 +463,7 @@ export class RoomService {
   }
 
   /**
-   * Expire empty rooms and drop disconnected players who do not come back.
+   * Expire empty rooms and drop disconnected players, not mid game.
    *
    * @param {Room} room The room that just changed.
    *
@@ -493,8 +493,8 @@ export class RoomService {
 
     for (const player of players) {
 
-      // connected: nobody to remove
-      if (player.socketId !== null) {
+      // connected, or mid game: nobody to remove
+      if (player.socketId !== null || room.status === 'PLAYING') {
         this.playerTimers.clear(player.id);
         continue;
       }
