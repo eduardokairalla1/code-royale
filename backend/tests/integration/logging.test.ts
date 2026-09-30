@@ -105,6 +105,14 @@ describe('logging', () => {
     const client = await TestClient.join(server, host);
     const ids = { room_code: host.code, player_id: host.playerId };
 
+    await client.emit('game:start');
+    await client.emit('submission:submit', {
+      language: 'python',
+      code: PROGRAMS.sum,
+    });
+    await logs.find('round_finished', { reason: 'everyone_judged' });
+    await client.emit('room:leave');
+
     // every line says which build wrote it
     expect(await logs.find('started')).toMatchObject({
       level: 'INFO',
@@ -123,28 +131,10 @@ describe('logging', () => {
 
     await logs.find('room_created', ids);
     await logs.find('socket_connected', ids);
-
-    await client.emit('game:start');
-
+    await logs.find('command', { ...ids, command: 'game:start' });
     expect(await logs.find('round_started', ids)).toMatchObject({
       challenge_id: expect.any(String),
       players: 1,
-    });
-
-    await client.emit('submission:run', {
-      language: 'python',
-      code: PROGRAMS.crash,
-    });
-
-    expect(await logs.find('examples_run', ids)).toMatchObject({
-      language: 'python',
-      statuses: { RUNTIME_ERROR: 1 },
-      executor_ms: expect.any(Number),
-    });
-
-    await client.emit('submission:submit', {
-      language: 'python',
-      code: PROGRAMS.sum,
     });
 
     expect(await logs.find('submission_judged', ids)).toMatchObject({
@@ -154,22 +144,25 @@ describe('logging', () => {
       verdict: 'ACCEPTED',
       statuses: { OK: 4 },
       recorded: true,
+      executor_ms: expect.any(Number),
     });
 
-    await client.emit('room:leave');
+    expect(await logs.find('round_finished', {
+      room_code: host.code,
+    })).toMatchObject({ players: 1, submitted: 1, solved: 1, missing: 0 });
 
-    await logs.find('command', { ...ids, command: 'room:leave' });
     await logs.find('player_left', { ...ids, reason: 'leave' });
     await logs.find('room_deleted', { room_code: host.code, reason: 'empty' });
 
     expect(await logs.find('socket', ids)).toMatchObject({
       closed_by: 'leave',
-      commands: 4,
+      commands: 3,
       duration_ms: expect.any(Number),
     });
 
-    // the token never reaches the logs
+    // the token and the code never reach the logs
     expect(logs.raw.join('\n')).not.toContain(host.token);
+    expect(logs.all('submission_judged')[0]).not.toHaveProperty('code');
   });
 
   it('skips the health check and logs unknown routes as info', async () => {
@@ -187,10 +180,30 @@ describe('logging', () => {
     expect(logs.raw.join('\n')).not.toContain('secret=1');
   });
 
-  it('logs a refused socket with why', async () => {
+  it('logs a failure at its level, with why', async () => {
     const { server, logs } = await startLogged();
 
     const host = await createRoom(server, 'Host');
+    const client = await TestClient.join(server, host);
+
+    await client.emit('game:start');
+    await client.emit('submission:submit', {
+      language: 'python',
+      code: PROGRAMS.unavailable,
+    });
+
+    expect(await logs.find('command', {
+      command: 'submission:submit',
+    })).toMatchObject({
+      level: 'ERROR',
+      outcome: 'error',
+      error: 'executor_unavailable_error',
+    });
+
+    expect(await logs.find('submission_judged')).toMatchObject({
+      level: 'ERROR',
+      outcome: 'error',
+    });
 
     // a bad token is refused before any connection
     await TestClient.connect(server, { roomCode: host.code, token: 'nope' });

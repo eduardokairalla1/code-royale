@@ -38,6 +38,21 @@ export function createRound(challenge: Challenge, playerIds: string[]): Round {
 }
 
 /**
+ * Tell whether every player still in the round was judged.
+ *
+ * @param {Round} round The round.
+ *
+ * @returns {boolean} True when nobody is left to submit or to be judged.
+ */
+export function everyoneJudged(round: Round): boolean {
+
+  const results = [...round.results.values()];
+
+  return results.length > 0
+    && results.every((result) => result.passed !== null);
+}
+
+/**
  * Summarize a round for the logs: who submitted, and how.
  *
  * @param {Round} round The round.

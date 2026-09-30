@@ -1,5 +1,5 @@
 /**
- * Running and submitting code, auto submit and ranking.
+ * Running and submitting code, auto submit, ranking and early end.
  */
 
 // --- IMPORTS ---
@@ -227,6 +227,17 @@ describe('submitting', () => {
 });
 
 describe('end of the round', () => {
+
+  it('ends early once everyone is judged', async () => {
+    const { clients: [ana, bob] } = await roundWith(['Ana', 'Bob']);
+
+    await ana!.emit('submission:submit', program(PROGRAMS.sum));
+    await bob!.emit('submission:submit', program('print:7'));
+
+    const finished = await ana!.waitFor((r) => r.status === 'FINISHED', 1000);
+
+    expect(ranking(finished)).toBe('1:Ana:100 2:Bob:25');
+  });
 
   it('auto submits drafts at the deadline and ranks everyone', async () => {
     const {
