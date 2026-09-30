@@ -46,6 +46,17 @@ function toJoinResponse({ room, player }: JoinResult) {
 }
 
 /**
+ * The request's log fields: who entered which room, never the token.
+ *
+ * @param {JoinResult} result The room and the player that entered it.
+ *
+ * @returns The room code and the player id.
+ */
+function joinFields({ room, player }: JoinResult) {
+  return { room_code: room.code, player_id: player.id };
+}
+
+/**
  * Register the room routes.
  *
  * @param {FastifyInstance} app The Fastify instance.
@@ -64,12 +75,16 @@ export async function roomRoutes(
 
     const result = await roomService.create(name);
 
+    request.wideEvent?.set(joinFields(result));
+
     return reply.status(201).send(toJoinResponse(result));
   });
 
   // look up a room, e.g. before showing the join screen
   app.get('/rooms/:code', async (request, reply) => {
     const { code } = parseInput(roomParamsSchema, request.params);
+
+    request.wideEvent?.set({ room_code: code });
 
     const room = await roomService.getOrThrow(code);
 
@@ -81,7 +96,11 @@ export async function roomRoutes(
     const { code } = parseInput(roomParamsSchema, request.params);
     const { name } = parseInput(nameBodySchema, request.body);
 
+    request.wideEvent?.set({ room_code: code });
+
     const result = await roomService.join(code, name);
+
+    request.wideEvent?.set(joinFields(result));
 
     return reply.status(200).send(toJoinResponse(result));
   });

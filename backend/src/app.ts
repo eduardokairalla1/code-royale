@@ -10,8 +10,10 @@ import { RoomService } from './modules/room/room.service.js';
 import { systemRoutes } from './modules/system/system.routes.js';
 import { registerErrorHandlers } from './shared/errors/error-handler.js';
 import { loggerOptions } from './shared/logging/logger.js';
+import { registerRequestLog } from './shared/logging/request-log.js';
 import cors from '@fastify/cors';
 import Fastify from 'fastify';
+import { LogController } from 'fastify';
 import type { FastifyInstance } from 'fastify';
 
 // --- CODE ---
@@ -22,6 +24,7 @@ export interface AppOptions {
   maxPlayersPerRoom?: number;
   maxRooms?: number;
   logger?: boolean;
+  logStream?: { write(line: string): void };
 }
 
 /**
@@ -36,7 +39,13 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
   const app = Fastify({
     logger: options.logger === false
       ? false
-      : loggerOptions(config.logLevel, config.version, config.commit),
+      : {
+        ...loggerOptions(config.logLevel, config.version, config.commit),
+        ...(options.logStream && { stream: options.logStream }),
+      },
+
+    // one line per request instead, see registerRequestLog
+    logController: new LogController({ disableRequestLogging: true }),
   });
 
   // wire the services
@@ -44,6 +53,9 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
     maxPlayersPerRoom: options.maxPlayersPerRoom ?? config.maxPlayersPerRoom,
     maxRooms: options.maxRooms ?? config.maxRooms,
   });
+
+  // one line per request, the health check aside
+  registerRequestLog(app, ['/api/health']);
 
   // let the frontend call the api from another origin
   app.register(cors, { origin: config.corsOrigins });

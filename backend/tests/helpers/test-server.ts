@@ -112,6 +112,17 @@ function toIdentity(body: any): { playerId: string; token: string } {
   return { playerId: body.player.id, token: body.player.token };
 }
 
+/**
+ * Wait for a while.
+ *
+ * @param {number} ms How long.
+ *
+ * @returns {Promise<void>}
+ */
+export function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 // close whatever each test opened
 afterEach(async () => {
   await Promise.all(openServers.splice(0).map(({ app }) => app.close()));
