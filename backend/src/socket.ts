@@ -39,6 +39,7 @@ export interface ServerToClientEvents {
 export interface ClientToServerEvents {
   'room:leave': (ack?: CommandAck) => void;
   'game:start': (ack?: CommandAck) => void;
+  'game:restart': (ack?: CommandAck) => void;
 }
 
 /**

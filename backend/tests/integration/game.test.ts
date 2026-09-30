@@ -1,10 +1,11 @@
 /**
- * Round lifecycle: start, clock and late joiners.
+ * Round lifecycle: start, clock, late joiners, play again.
  */
 
 // --- IMPORTS ---
 import { createRoom } from '../helpers/test-server.js';
 import { joinRoom } from '../helpers/test-server.js';
+import { request } from '../helpers/test-server.js';
 import { sleep } from '../helpers/test-server.js';
 import { startServer } from '../helpers/test-server.js';
 import { TEST_TIMINGS } from '../helpers/test-server.js';
@@ -97,5 +98,36 @@ describe('the clock', () => {
 
     // round over: the grace period applies again
     await hostClient.waitFor((room) => room.players.length === 1);
+  });
+});
+
+describe('playing again', () => {
+
+  it('goes back to the same lobby and avoids repeats', async () => {
+    const { server, host, hostClient, guestClient } = await roomWithTwo();
+
+    expect((await hostClient.emit('game:restart')).error)
+      .toBe('game_not_finished_error');
+
+    await hostClient.emit('game:start');
+    const first = await hostClient.waitFor((r) => r.status === 'PLAYING');
+    await hostClient.waitFor((r) => r.status === 'FINISHED');
+
+    expect((await guestClient.emit('game:restart')).error)
+      .toBe('not_host_error');
+    expect(await hostClient.emit('game:restart')).toEqual({ ok: true });
+
+    const lobby = await guestClient.waitFor((r) => r.status === 'LOBBY');
+    expect(lobby.round).toBeNull();
+    expect(lobby.players).toHaveLength(2);
+
+    hostClient.clear();
+    await hostClient.emit('game:start');
+    const second = await hostClient.waitFor((r) => r.status === 'PLAYING');
+
+    expect(second.round?.challenge.id).not.toBe(first.round?.challenge.id);
+
+    const http = await request(server, 'GET', `/api/rooms/${host.code}`);
+    expect(http.body.round.challenge.id).toBe(second.round?.challenge.id);
   });
 });
