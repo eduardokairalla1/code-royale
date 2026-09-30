@@ -1,0 +1,45 @@
+/* design tokens: colors taken from the logo, fonts, strokes and motion */
+
+:root {
+
+  /* ink and paper */
+  --ink: #1a1a1a;
+  --ink-soft: #5a5550;
+  --ink-faint: rgba(26, 26, 26, 0.06);
+  --paper: #fff8e7;
+  --paper-light: #fffdf6;
+
+  /* logo colors */
+  --crown: #ffd54a;
+  --crown-dark: #f5a524;
+  --gem: #e5383b;
+
+  /* feedback colors */
+  --success: #3dbe6b;
+  --danger: var(--gem);
+  --pending: var(--crown-dark);
+
+  /* fonts */
+  --font-display: 'Luckiest Guy', 'Comic Sans MS', cursive;
+  --font-hand: 'Patrick Hand', 'Comic Sans MS', cursive;
+  --font-body: 'Nunito', system-ui, sans-serif;
+  --font-code: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* strokes and the hard, offset shadow of the logo */
+  --stroke: 2.5px;
+  --shadow-offset: 4px;
+
+  /* spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  /* motion */
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-fast: 120ms;
+  --duration-base: 220ms;
+}
