@@ -4,8 +4,10 @@
 
 // --- IMPORTS ---
 import { generateRoomCode } from '../../shared/ids.js';
+import { tokensMatch } from '../../shared/ids.js';
 import { Event } from '../../shared/logging/events.js';
 import { log } from '../../shared/logging/events.js';
+import { InvalidPlayerTokenError } from './room.errors.js';
 import { RoomCodeGenerationError } from './room.errors.js';
 import { RoomFullError } from './room.errors.js';
 import { RoomInGameError } from './room.errors.js';
@@ -158,6 +160,32 @@ export class RoomService {
     }
 
     return room;
+  }
+
+  /**
+   * Find the player of a room that owns the given token.
+   *
+   * @param {string} code The room code, in any case.
+   * @param {string} token The player's secret token.
+   *
+   * @returns {Promise<JoinResult>} The room and the token's owner.
+   *
+   * @throws {RoomNotFoundError} When the room does not exist.
+   * @throws {InvalidPlayerTokenError} When no player owns the token.
+   */
+  async authenticate(code: string, token: string): Promise<JoinResult> {
+
+    const room = await this.getOrThrow(code);
+
+    const player = [...room.players.values()].find(
+      (candidate) => tokensMatch(candidate.token, token),
+    );
+
+    if (!player) {
+      throw new InvalidPlayerTokenError({ code: room.code });
+    }
+
+    return { room, player };
   }
 
   /**

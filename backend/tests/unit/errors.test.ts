@@ -8,6 +8,7 @@ import { AppError } from '../../src/shared/errors/app-error.js';
 import {
   RequestValidationError,
 } from '../../src/shared/errors/request-validation-error.js';
+import { toErrorBody } from '../../src/shared/errors/socket-error.js';
 import { parseInput } from '../../src/shared/validation.js';
 import { describe } from 'vitest';
 import { expect } from 'vitest';
@@ -24,6 +25,22 @@ describe('AppError', () => {
     expect(error.slug).toBe('room_not_found_error');
     expect(error.message).toBe('Room not found!');
     expect(error.details).toEqual({ code: 'ABCDE' });
+  });
+
+  it('keeps details out of the client envelope', () => {
+    const body = toErrorBody(new RoomNotFoundError({ secret: 'x' }));
+
+    expect(body).toEqual({
+      error: 'room_not_found_error',
+      message: 'Room not found!',
+    });
+  });
+
+  it('answers a generic 500 for anything that is not an AppError', () => {
+    expect(toErrorBody(new Error('internal detail'))).toEqual({
+      error: 'internal_error',
+      message: 'Internal Server Error!',
+    });
   });
 
   it('defaults to a 500 logged as error', () => {

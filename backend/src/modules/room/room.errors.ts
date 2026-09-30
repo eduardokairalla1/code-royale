@@ -48,3 +48,12 @@ export class TooManyRoomsError extends AppError {
 export class RoomCodeGenerationError extends AppError {
   static override readonly MESSAGE = 'Could not create the room!';
 }
+
+/**
+ * Raised when a token does not belong to any player of the room.
+ */
+export class InvalidPlayerTokenError extends AppError {
+  static override readonly MESSAGE = 'Invalid player token!';
+  static override readonly STATUS_CODE = 401;
+  static override readonly LOG_LEVEL = 'warn';
+}

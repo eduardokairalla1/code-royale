@@ -8,6 +8,7 @@ import { request } from '../helpers/test-server.js';
 import { sleep } from '../helpers/test-server.js';
 import { startServer } from '../helpers/test-server.js';
 import type { TestServer } from '../helpers/test-server.js';
+import { TestClient } from '../helpers/test-server.js';
 import { describe } from 'vitest';
 import { expect } from 'vitest';
 import { it } from 'vitest';
@@ -142,5 +143,19 @@ describe('logging', () => {
     });
     expect(logs.all('request', { path: '/api/health' })).toHaveLength(0);
     expect(logs.raw.join('\n')).not.toContain('secret=1');
+  });
+
+  it('logs a refused socket with why', async () => {
+    const { server, logs } = await startLogged();
+
+    const host = await createRoom(server, 'Host');
+
+    // a bad token is refused before any connection
+    await TestClient.connect(server, { roomCode: host.code, token: 'nope' });
+
+    expect(await logs.find('socket_refused')).toMatchObject({
+      level: 'WARN',
+      error: 'invalid_player_token_error',
+    });
   });
 });

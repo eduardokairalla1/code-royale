@@ -1,16 +1,20 @@
 /**
- * Test harness: a real server on a random port.
+ * Test harness: a real server on a random port and socket clients.
  */
 
 // --- IMPORTS ---
 import type { AppOptions } from '../../src/app.js';
 import { buildApp } from '../../src/app.js';
+import { SOCKET_PATH } from '../../src/socket.js';
 import type { FastifyInstance } from 'fastify';
+import { io } from 'socket.io-client';
+import type { Socket } from 'socket.io-client';
 import { afterEach } from 'vitest';
 
 // --- GLOBALS ---
 // everything opened by a test, closed after it
 const openServers: TestServer[] = [];
+const openClients: TestClient[] = [];
 
 // --- CODE ---
 /**
@@ -113,6 +117,76 @@ function toIdentity(body: any): { playerId: string; token: string } {
 }
 
 /**
+ * A socket client that records how its connection went.
+ */
+export class TestClient {
+  connectError: any = null;
+  disconnectReason: string | null = null;
+
+  /**
+   * Wrap a socket, recording its events.
+   *
+   * @param {Socket} socket The socket.io client socket.
+   */
+  private constructor(readonly socket: Socket) {
+    socket.on('connect_error', (error: any) => {
+      this.connectError = error.data;
+    });
+    socket.on('disconnect', (reason) => {
+      this.disconnectReason = reason;
+    });
+  }
+
+  /**
+   * Connect to the server and wait until it accepts or refuses.
+   *
+   * @param {TestServer} server The server.
+   * @param {unknown} auth The handshake auth, usually a room code and token.
+   *
+   * @returns {Promise<TestClient>} The client, connected or refused.
+   */
+  static async connect(server: TestServer, auth: unknown): Promise<TestClient> {
+
+    const socket = io(server.url, {
+      path: SOCKET_PATH,
+      auth: auth as Record<string, unknown>,
+      transports: ['websocket'],
+      reconnection: false,
+      forceNew: true,
+    });
+
+    const client = new TestClient(socket);
+
+    openClients.push(client);
+
+    await new Promise<void>((resolve) => {
+      socket.once('connect', () => resolve());
+      socket.once('connect_error', () => resolve());
+    });
+
+    return client;
+  }
+
+  /**
+   * Connect as a player of a room.
+   *
+   * @param {TestServer} server The server.
+   * @param {Identity} identity The player's room code and token.
+   *
+   * @returns {Promise<TestClient>} The connected client.
+   */
+  static async join(
+    server: TestServer,
+    identity: Identity,
+  ): Promise<TestClient> {
+    return TestClient.connect(server, {
+      roomCode: identity.code,
+      token: identity.token,
+    });
+  }
+}
+
+/**
  * Wait for a while.
  *
  * @param {number} ms How long.
@@ -125,5 +199,6 @@ export function sleep(ms: number): Promise<void> {
 
 // close whatever each test opened
 afterEach(async () => {
+  openClients.splice(0).forEach((client) => client.socket.disconnect());
   await Promise.all(openServers.splice(0).map(({ app }) => app.close()));
 });

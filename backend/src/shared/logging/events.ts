@@ -17,6 +17,9 @@ export const Event = {
   // one per http request
   Request: 'request',
 
+  // sockets
+  SocketRefused: 'socket_refused',
+
   // rooms
   RoomCreated: 'room_created',
   PlayerJoined: 'player_joined',
