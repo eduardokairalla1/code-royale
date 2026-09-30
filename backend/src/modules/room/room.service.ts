@@ -368,6 +368,7 @@ export class RoomService {
 
     this.playerTimers.clear(playerId);
     room.players.delete(playerId);
+    room.round?.results.delete(playerId);
 
     log(this.options.logger, 'info', Event.PlayerLeft, {
       room_code: room.code,
