@@ -33,6 +33,8 @@ export interface Round {
   startedAt: number;
   endsAt: number;
   results: Map<string, PlayerResult>;
+  // never sent to clients: judged as is when time runs out
+  drafts: Map<string, Draft>;
 }
 
 /**

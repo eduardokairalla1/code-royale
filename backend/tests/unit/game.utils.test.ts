@@ -48,17 +48,20 @@ describe('createRound', () => {
 
     expect(round.endsAt - round.startedAt).toBe(60_000);
     expect([...round.results.keys()]).toEqual(['a', 'b']);
+    expect(round.drafts.size).toBe(0);
   });
 });
 
 describe('toPublicRound', () => {
 
-  it('never exposes the hidden tests', () => {
+  it('never exposes the hidden tests or the drafts', () => {
     const round = createRound(CHALLENGE, ['a']);
+    round.drafts.set('a', { language: 'python', code: 'print(1)' });
 
     const json = JSON.stringify(toPublicRound(round));
 
     expect(json).not.toContain('SECRET');
+    expect(json).not.toContain('print(1)');
   });
 
   it('ranks full solves by time, then partials, then not submitted', () => {

@@ -1,5 +1,5 @@
 /**
- * Submission rules: example runs.
+ * Submission rules: example runs and drafts.
  */
 
 // --- IMPORTS ---
@@ -113,6 +113,31 @@ export class SubmissionService {
       this.runningPlayers.delete(playerId);
       event.emit(this.logger, Event.ExamplesRun);
     }
+  }
+
+  /**
+   * Keep the player's latest code, submitted as is when time runs out.
+   *
+   * @param {string} code The room code.
+   * @param {string} playerId Whose draft it is.
+   * @param {Draft} draft The language and the code.
+   *
+   * @returns {Promise<void>}
+   */
+  async saveDraft(code: string, playerId: string, draft: Draft): Promise<void> {
+
+    const room = await this.roomService.find(code);
+    const round = room?.round;
+
+    // nothing to keep it for
+    if (!room || room.status !== 'PLAYING' || !round?.results.has(playerId)) {
+      return;
+    }
+
+    round.drafts.set(playerId, draft);
+
+    // no broadcast: drafts are private and change on every keystroke
+    await this.roomService.save(room);
   }
 
   /**

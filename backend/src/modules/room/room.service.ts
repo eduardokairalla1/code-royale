@@ -230,6 +230,17 @@ export class RoomService {
   }
 
   /**
+   * Save a room without telling anyone, for changes clients never see.
+   *
+   * @param {Room} room The changed room.
+   *
+   * @returns {Promise<void>}
+   */
+  async save(room: Room): Promise<void> {
+    await this.store.save(room);
+  }
+
+  /**
    * Save a changed room, re-apply the cleanup rules and notify listeners.
    *
    * @param {Room} room The changed room.
@@ -369,6 +380,7 @@ export class RoomService {
     this.playerTimers.clear(playerId);
     room.players.delete(playerId);
     room.round?.results.delete(playerId);
+    room.round?.drafts.delete(playerId);
 
     log(this.options.logger, 'info', Event.PlayerLeft, {
       room_code: room.code,

@@ -6,7 +6,6 @@
 import { PROGRAMS } from '../helpers/fake-executor.js';
 import { createRoom } from '../helpers/test-server.js';
 import { request } from '../helpers/test-server.js';
-import { sleep } from '../helpers/test-server.js';
 import { startServer } from '../helpers/test-server.js';
 import { TestClient } from '../helpers/test-server.js';
 import { describe } from 'vitest';
@@ -113,20 +112,18 @@ describe('rooms', () => {
 describe('socket events', () => {
 
   it('answers events past the rate with an error', async () => {
-    const server = await startServer();
-    const host = await createRoom(server, 'Ana');
-    const client = await TestClient.join(server, host);
-    const answers: any[] = [];
+    const client = await soloRound({});
+    const draft = { language: 'python', code: 'x' };
 
-    // a burst far above the editor's pace; only refusals are answered
-    for (let i = 0; i < 40; i++) {
-      client.socket.emit('noop', (answer: any) => answers.push(answer));
-    }
+    // a burst far above the editor's pace
+    const responses = await Promise.all(
+      Array.from({ length: 40 }, () => client.emit('submission:draft', draft)),
+    );
+    const limited = responses.filter(
+      (response) => response.error === 'rate_limited_error',
+    );
 
-    await sleep(200);
-
-    expect(answers.length).toBeGreaterThan(0);
-    expect(answers.every((answer) => answer.error === 'rate_limited_error'))
-      .toBe(true);
+    expect(responses[0].ok).toBe(true);
+    expect(limited.length).toBeGreaterThan(0);
   });
 });

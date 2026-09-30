@@ -1,5 +1,5 @@
 /**
- * Submission socket handlers: run the examples.
+ * Submission socket handlers: run the examples and sync drafts.
  */
 
 // --- IMPORTS ---
@@ -37,7 +37,7 @@ export function registerSubmissionSocket(
   limits: SubmissionLimits,
 ): void {
 
-  const { codeSchema } = buildSchemas(limits);
+  const { codeSchema, draftSchema } = buildSchemas(limits);
 
   io.on('connection', (socket) => {
 
@@ -50,6 +50,15 @@ export function registerSubmissionSocket(
         return submissionService.runExamples(roomCode, playerId, draft);
       });
     });
+
+    // keep the editor content, judged as is when time runs out; sent
+    // while the player types, so only failures leave the debug level
+    socket.on('submission:draft', (payload, ack) => {
+      void runCommand(socket, 'submission:draft', ack, logger, () => {
+        const draft = parseInput(draftSchema, payload);
+        return submissionService.saveDraft(roomCode, playerId, draft);
+      }, 'debug');
+    });
   });
 }
 
@@ -58,7 +67,7 @@ export function registerSubmissionSocket(
  *
  * @param {SubmissionLimits} limits Enabled languages and code size.
  *
- * @returns The schema for runs.
+ * @returns The schema for runs, and the one for drafts.
  */
 function buildSchemas({ languageIds, maxCodeLength }: SubmissionLimits) {
 
@@ -74,5 +83,11 @@ function buildSchemas({ languageIds, maxCodeLength }: SubmissionLimits) {
     }),
   });
 
-  return { codeSchema };
+  // drafts may be empty: the player may have cleared the editor
+  const draftSchema = z.object({
+    language: languageSchema,
+    code: z.string().max(maxCodeLength),
+  });
+
+  return { codeSchema, draftSchema };
 }
