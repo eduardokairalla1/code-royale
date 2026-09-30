@@ -43,6 +43,7 @@ export interface AppOptions {
   maxPlayersPerRoom?: number;
   maxRooms?: number;
   maxCodeLength?: number;
+  maxConcurrentRuns?: number;
   enabledLanguages?: string[];
   logger?: boolean;
   logStream?: { write(line: string): void };
@@ -83,6 +84,7 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
     options.executor
       ?? new PistonExecutor(config.pistonUrl, config.pistonTimeoutMs),
     app.log,
+    options.maxConcurrentRuns ?? config.maxConcurrentRuns,
   );
 
   const challengeService = options.challengeService
@@ -107,6 +109,8 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
       max_rooms: options.maxRooms ?? config.maxRooms,
       max_players_per_room:
         options.maxPlayersPerRoom ?? config.maxPlayersPerRoom,
+      max_concurrent_runs:
+        options.maxConcurrentRuns ?? config.maxConcurrentRuns,
       piston: new URL(config.pistonUrl).origin,
     });
   });

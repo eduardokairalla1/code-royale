@@ -46,6 +46,7 @@ describe('config', () => {
       challengesDir: undefined,
       pistonTimeoutMs: 60_000,
       maxCodeLength: 64_000,
+      maxConcurrentRuns: 16,
     });
     expect(config.enabledLanguages).toHaveLength(8);
   });

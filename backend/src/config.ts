@@ -49,6 +49,8 @@ const envSchema = z.object({
   PISTON_URL: z.url().default('http://localhost:2000'),
   PISTON_TIMEOUT_SECONDS: z.coerce.number().int().positive().default(60),
   MAX_CODE_LENGTH: z.coerce.number().int().positive().default(64_000),
+  // example runs at once across every room; submissions are never capped
+  MAX_CONCURRENT_RUNS: z.coerce.number().int().positive().default(16),
 
   // languages players may pick, comma separated; all of them when unset
   ENABLED_LANGUAGES: commaList
@@ -81,6 +83,7 @@ export const config = {
   pistonUrl: env.PISTON_URL,
   pistonTimeoutMs: env.PISTON_TIMEOUT_SECONDS * 1000,
   maxCodeLength: env.MAX_CODE_LENGTH,
+  maxConcurrentRuns: env.MAX_CONCURRENT_RUNS,
   enabledLanguages: env.ENABLED_LANGUAGES,
 };
 

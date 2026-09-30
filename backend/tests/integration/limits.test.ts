@@ -5,6 +5,7 @@
 // --- IMPORTS ---
 import { PROGRAMS } from '../helpers/fake-executor.js';
 import { createRoom } from '../helpers/test-server.js';
+import { joinRoom } from '../helpers/test-server.js';
 import { request } from '../helpers/test-server.js';
 import { startServer } from '../helpers/test-server.js';
 import { TestClient } from '../helpers/test-server.js';
@@ -106,6 +107,38 @@ describe('rooms', () => {
     expect(first.status).toBe(201);
     expect(second.status).toBe(503);
     expect(second.body.error).toBe('too_many_rooms_error');
+  });
+});
+
+describe('runs at once', () => {
+
+  it('refuses example runs past the limit, never submissions', async () => {
+    const server = await startServer({ maxConcurrentRuns: 1 });
+    const host = await createRoom(server, 'Ana');
+    const guest = await joinRoom(server, host.code, 'Bob');
+    const ana = await TestClient.join(server, host);
+    const bob = await TestClient.join(server, guest);
+
+    await ana.emit('game:start');
+    await bob.waitFor((room) => room.status === 'PLAYING');
+
+    // ana's slow run holds the only slot
+    const slow = ana.emit('submission:run', {
+      language: 'python',
+      code: PROGRAMS.slowSum,
+    });
+    const busy = await bob.emit('submission:run', {
+      language: 'python',
+      code: PROGRAMS.sum,
+    });
+    const submitted = await bob.emit('submission:submit', {
+      language: 'python',
+      code: PROGRAMS.sum,
+    });
+
+    expect(busy.error).toBe('executor_busy_error');
+    expect(submitted.ok).toBe(true);
+    expect((await slow).ok).toBe(true);
   });
 });
 

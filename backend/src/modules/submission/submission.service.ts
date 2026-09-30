@@ -6,6 +6,7 @@
 import { Event } from '../../shared/logging/events.js';
 import { WideEvent } from '../../shared/logging/wide-event.js';
 import type { ChallengeCase } from '../challenge/challenge.types.js';
+import { ExecutorBusyError } from '../executor/executor.errors.js';
 import type { CodeExecutor } from '../executor/executor.types.js';
 import type { ExecutionResult } from '../executor/executor.types.js';
 import type { Draft } from '../game/game.types.js';
@@ -49,11 +50,13 @@ export class SubmissionService {
    * @param {RoomService} roomService The room rules.
    * @param {CodeExecutor} executor Runs the code in a sandbox.
    * @param {FastifyBaseLogger} logger Where runs and verdicts are logged.
+   * @param {number} maxConcurrentRuns Example runs at once, across rooms.
    */
   constructor(
     private readonly roomService: RoomService,
     private readonly executor: CodeExecutor,
     private readonly logger: FastifyBaseLogger,
+    private readonly maxConcurrentRuns: number,
   ) {}
 
   /**
@@ -68,6 +71,7 @@ export class SubmissionService {
    * @throws {RoundNotRunningError} When no round is running.
    * @throws {NotInRoundError} When the player is not in the round.
    * @throws {RunInProgressError} When their previous run is not done.
+   * @throws {ExecutorBusyError} When too many runs are already going.
    */
   async runExamples(
     code: string,
@@ -80,6 +84,11 @@ export class SubmissionService {
     // one run at a time per player
     if (this.runningPlayers.has(playerId)) {
       throw new RunInProgressError({ code, playerId });
+    }
+
+    // past the global cap runs only queue up; submissions are never refused
+    if (this.runningPlayers.size >= this.maxConcurrentRuns) {
+      throw new ExecutorBusyError({ running: this.runningPlayers.size });
     }
 
     this.runningPlayers.add(playerId);
