@@ -1,0 +1,83 @@
+.problem {
+  width: 100%;
+}
+
+.heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.title {
+  font-size: 30px;
+  line-height: 1.15;
+}
+
+/* a hand-inked tag, colored by how hard it is */
+.difficulty {
+  padding: 0 var(--space-3);
+  font-family: var(--font-hand);
+  font-size: 18px;
+  color: var(--tag-color);
+  border: var(--stroke) solid var(--tag-color);
+  border-radius: 12px 8px 14px 9px;
+  transform: rotate(-3deg);
+}
+
+.difficulty[data-difficulty='easy'] {
+  --tag-color: var(--success);
+}
+
+.difficulty[data-difficulty='medium'] {
+  --tag-color: var(--crown-dark);
+}
+
+.difficulty[data-difficulty='hard'] {
+  --tag-color: var(--gem);
+}
+
+.description {
+  white-space: pre-line;
+}
+
+.subtitle {
+  margin: var(--space-5) 0 var(--space-3);
+  font-family: var(--font-hand);
+  font-size: 22px;
+}
+
+.examples {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.example {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 2px dashed var(--ink-soft);
+  border-radius: 8px;
+}
+
+.label {
+  font-family: var(--font-hand);
+  font-size: 17px;
+  color: var(--ink-soft);
+}
+
+.io {
+  margin: var(--space-1) 0 0;
+  padding: var(--space-2) var(--space-3);
+  overflow-x: auto;
+  font-family: var(--font-code);
+  font-size: 14px;
+  background: var(--paper);
+  border-radius: 6px;
+}
