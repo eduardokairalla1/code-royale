@@ -1,0 +1,7 @@
+# build output is rebuilt inside the image
+/lsp
+
+# never bake secrets into the image
+.env
+.env.*
+!.env.example
