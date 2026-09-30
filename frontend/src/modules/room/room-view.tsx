@@ -6,6 +6,7 @@
 import { Button } from '../../components/button/button.tsx';
 import { Logo } from '../../components/logo/logo.tsx';
 import { Notice } from '../../components/notice/notice.tsx';
+import { Scribble } from '../../components/scribble/scribble.tsx';
 import { ToastStack } from '../../components/toast/toast-stack.tsx';
 import { describeUnknownError } from '../../shared/errors.ts';
 import { Lobby } from './lobby.tsx';
@@ -15,9 +16,18 @@ import type { Session } from './room.types.ts';
 import { useRoomConnection } from './use-room-connection.ts';
 import { AnimatePresence } from 'motion/react';
 import { motion } from 'motion/react';
+import { lazy } from 'react';
+import { Suspense } from 'react';
 import { useEffect } from 'react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
+
+// --- GLOBALS ---
+// the round screens bring the editor along: load them only when needed
+const GameScreen = lazy(async () => {
+  const module = await import('../game/game-screen.tsx');
+  return { default: module.GameScreen };
+});
 
 // --- CODE ---
 /**
@@ -151,7 +161,20 @@ export function RoomView({
       </header>
 
       <main className={styles.main}>
-        <Lobby room={room} selfId={session.playerId} />
+        {room.status === 'LOBBY'
+          ? (
+            <Lobby room={room} selfId={session.playerId} />
+          )
+          : (
+            <Suspense fallback={<Scribble label="Preparing the round..." />}>
+              <GameScreen
+                room={room}
+                selfId={session.playerId}
+                clockOffset={connection.clockOffset}
+                send={connection.send}
+              />
+            </Suspense>
+          )}
       </main>
 
       <ToastStack toasts={notices.toasts} onDismiss={notices.dismiss} />
