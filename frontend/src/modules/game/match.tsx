@@ -3,17 +3,21 @@
  */
 
 // --- IMPORTS ---
+import { Button } from '../../components/button/button.tsx';
 import {
   ConfirmDialog,
 } from '../../components/confirm-dialog/confirm-dialog.tsx';
 import { Scribble } from '../../components/scribble/scribble.tsx';
 import { Select } from '../../components/select/select.tsx';
 import { Stamp } from '../../components/stamp/stamp.tsx';
+import { describeUnknownError } from '../../shared/errors.ts';
 import { useLanguages } from '../language/language.api.ts';
 import type { Room } from '../room/room.types.ts';
 import type { Draft } from './game.types.ts';
+import type { ExampleResult } from './game.types.ts';
 import styles from './match.module.css';
 import { Problem } from './problem.tsx';
+import { RunOutput } from './run-output.tsx';
 import { Scoreboard } from './scoreboard.tsx';
 import { Timer } from './timer.tsx';
 import { useEditorDraft } from './use-editor-draft.ts';
@@ -81,6 +85,9 @@ export function Match({ room, selfId, clockOffset, send }: MatchProps) {
     syncDraft,
   );
 
+  const [running, setRunning] = useState(false);
+  const [runResults, setRunResults] = useState<ExampleResult[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [pendingLanguage, setPendingLanguage] = useState<string | null>(null);
   const [stamp, setStamp] = useState<StampState | null>(() => {
     return now - round.startedAt < FRESH_ROUND_MS
@@ -89,11 +96,39 @@ export function Match({ room, selfId, clockOffset, send }: MatchProps) {
   });
 
   const locked = timeUp;
+  const hasCode = Boolean(editor.draft?.code.trim());
 
   useTimeUp(timeUp, () => {
     editor.flush();
     setStamp({ text: 'TIME!', color: 'var(--gem)' });
   });
+
+  /**
+   * Run the code against the public examples.
+   *
+   * @returns {Promise<void>}
+   */
+  async function handleRun(): Promise<void> {
+
+    if (!editor.draft) {
+      return;
+    }
+
+    setRunning(true);
+    setError(null);
+
+    // ran: show every example's output
+    try {
+      const results = await send('submission:run', editor.draft);
+      setRunResults(results as ExampleResult[]);
+
+    // refused or unreachable: say why
+    } catch (reason) {
+      setError(describeUnknownError(reason));
+    } finally {
+      setRunning(false);
+    }
+  }
 
   /**
    * Switch language, asking first when that throws edited code away.
@@ -141,6 +176,16 @@ export function Match({ room, selfId, clockOffset, send }: MatchProps) {
               disabled={locked || !languages}
               onChange={handleLanguage}
             />
+
+            <div className={styles.actions}>
+              <Button
+                variant="secondary"
+                disabled={locked || running || !hasCode}
+                onClick={() => void handleRun()}
+              >
+                {running ? 'Running...' : 'Run'}
+              </Button>
+            </div>
           </div>
 
           <Suspense fallback={<Scribble label="Opening the editor..." />}>
@@ -156,9 +201,14 @@ export function Match({ room, selfId, clockOffset, send }: MatchProps) {
               : <Scribble label="Loading languages..." />}
           </Suspense>
 
+          {error && <p className={styles.error} role="alert">{error}</p>}
+
           {timeUp && (
             <Scribble label="Time is up! Submitting your code..." />
           )}
+
+          {running && <Scribble label="Running the examples..." />}
+          {!running && runResults && <RunOutput results={runResults} />}
         </div>
       </div>
 
