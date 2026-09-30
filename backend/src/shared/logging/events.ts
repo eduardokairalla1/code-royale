@@ -22,6 +22,7 @@ export const Event = {
   SocketRefused: 'socket_refused',
   SocketConnected: 'socket_connected',
   Socket: 'socket',
+  RateLimited: 'rate_limited',
 
   // rooms
   RoomCreated: 'room_created',

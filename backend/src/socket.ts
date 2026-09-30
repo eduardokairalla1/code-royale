@@ -4,6 +4,10 @@
 
 // --- IMPORTS ---
 import { config } from './config.js';
+import { RateLimitedError } from './shared/errors/rate-limited-error.js';
+import { toErrorBody } from './shared/errors/socket-error.js';
+import { Event } from './shared/logging/events.js';
+import { log } from './shared/logging/events.js';
 import type { WideEvent } from './shared/logging/wide-event.js';
 import type { PublicRoom } from './modules/room/room.types.js';
 import type { CommandAck } from './shared/socket-command.js';
@@ -16,6 +20,10 @@ import type { Socket } from 'socket.io';
 // where routes and the socket are served, also the public path
 export const API_PREFIX = '/api';
 export const SOCKET_PATH = `${API_PREFIX}/socket`;
+
+// events per socket, far above what the editor sends
+const EVENTS_PER_SECOND = 10;
+const EVENTS_BURST = 20;
 
 // --- CODE ---
 /**
@@ -84,5 +92,60 @@ export function createSocketServer(app: FastifyInstance): AppServer {
     io.disconnectSockets(true);
   });
 
+  io.on('connection', (socket) => limitEvents(socket, app));
+
   return io;
+}
+
+/**
+ * Refuse events past the socket's rate, with a token bucket.
+ *
+ * @param {AppSocket} socket The socket to limit.
+ * @param {FastifyInstance} app Where refusals are logged.
+ *
+ * @returns {void}
+ */
+function limitEvents(socket: AppSocket, app: FastifyInstance): void {
+
+  let tokens = EVENTS_BURST;
+  let refilledAt = Date.now();
+
+  // logged once per flood, not once per dropped event
+  let refusing = false;
+
+  socket.use((packet, next) => {
+    const now = Date.now();
+
+    tokens = Math.min(
+      EVENTS_BURST,
+      tokens + ((now - refilledAt) / 1000) * EVENTS_PER_SECOND,
+    );
+    refilledAt = now;
+
+    if (tokens >= 1) {
+      tokens -= 1;
+      refusing = false;
+      next();
+      return;
+    }
+
+    // over the rate: dropped, and the ack, if any, says why
+    const ack = packet.at(-1);
+
+    socket.data.event?.count('limited');
+
+    if (!refusing) {
+      log(app.log, 'warn', Event.RateLimited, {
+        socket_id: socket.id,
+        room_code: socket.data.roomCode,
+        player_id: socket.data.playerId,
+        command: String(packet[0]),
+      });
+      refusing = true;
+    }
+
+    if (typeof ack === 'function') {
+      ack(toErrorBody(new RateLimitedError()));
+    }
+  });
 }

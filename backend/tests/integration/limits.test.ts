@@ -1,11 +1,13 @@
 /**
- * Configured limits.
+ * Configured limits and the socket event rate.
  */
 
 // --- IMPORTS ---
 import { createRoom } from '../helpers/test-server.js';
 import { request } from '../helpers/test-server.js';
+import { sleep } from '../helpers/test-server.js';
 import { startServer } from '../helpers/test-server.js';
+import { TestClient } from '../helpers/test-server.js';
 import { describe } from 'vitest';
 import { expect } from 'vitest';
 import { it } from 'vitest';
@@ -37,5 +39,26 @@ describe('rooms', () => {
     expect(first.status).toBe(201);
     expect(second.status).toBe(503);
     expect(second.body.error).toBe('too_many_rooms_error');
+  });
+});
+
+describe('socket events', () => {
+
+  it('answers events past the rate with an error', async () => {
+    const server = await startServer();
+    const host = await createRoom(server, 'Ana');
+    const client = await TestClient.join(server, host);
+    const answers: any[] = [];
+
+    // a burst far above the editor's pace; only refusals are answered
+    for (let i = 0; i < 40; i++) {
+      client.socket.emit('noop', (answer: any) => answers.push(answer));
+    }
+
+    await sleep(200);
+
+    expect(answers.length).toBeGreaterThan(0);
+    expect(answers.every((answer) => answer.error === 'rate_limited_error'))
+      .toBe(true);
   });
 });
