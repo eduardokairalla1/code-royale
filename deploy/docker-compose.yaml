@@ -1,0 +1,66 @@
+# --- piston environment ---
+x-piston-env: &piston-env
+
+  # general
+  PISTON_DISABLE_NETWORKING: "true"
+
+  # limits per run, in ms and bytes
+  PISTON_RUN_TIMEOUT: ${PISTON_RUN_TIMEOUT:-3000}
+  PISTON_RUN_CPU_TIME: ${PISTON_RUN_CPU_TIME:-3000}
+  PISTON_COMPILE_TIMEOUT: ${PISTON_COMPILE_TIMEOUT:-20000}
+  PISTON_COMPILE_CPU_TIME: ${PISTON_COMPILE_CPU_TIME:-20000}
+
+  # NOTE: sized for the JVM; the default, -1, is no limit
+  PISTON_RUN_MEMORY_LIMIT: ${PISTON_RUN_MEMORY_LIMIT:-512000000}
+  PISTON_COMPILE_MEMORY_LIMIT: ${PISTON_COMPILE_MEMORY_LIMIT:-1024000000}
+
+  # stdout/stderr cap per run, in characters
+  PISTON_OUTPUT_MAX_SIZE: ${PISTON_OUTPUT_MAX_SIZE:-65536}
+
+  # runs at once; the rest wait in piston's queue
+  PISTON_MAX_CONCURRENT_JOBS: ${PISTON_MAX_CONCURRENT_JOBS:-8}
+
+  # NOTE: go needs more than 64 processes; the rest stays capped
+  PISTON_LIMIT_OVERRIDES: '{"go":{"max_process_count":128}}'
+
+# --- code-royale Docker Compose ---
+name: code-royale
+
+services:
+
+  piston:
+    image: ghcr.io/engineer-man/piston@sha256:2f66b7456189c4d713aa986d98eccd0b6ee16d26c7ec5f21b30e942756fd127a
+    platform: linux/amd64
+    privileged: true
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/2000'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    environment: *piston-env
+    volumes:
+      - ./data/piston/packages:/piston/packages
+    tmpfs:
+      - /tmp:exec
+    networks:
+      - internal
+
+  piston-packages:
+    image: curlimages/curl:8.16.0
+    entrypoint: ["sh", "/install-packages.sh"]
+    restart: "no"
+    volumes:
+      - ./configs/piston/install-packages.sh:/install-packages.sh:ro
+      - ./configs/piston/packages.txt:/packages.txt:ro
+    depends_on:
+      piston:
+        condition: service_healthy
+    networks:
+      - internal
+
+# --- networks ---
+networks:
+  internal:
+    driver: bridge

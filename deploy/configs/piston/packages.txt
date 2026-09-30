@@ -1,0 +1,10 @@
+# --- Piston language packages ---
+# one "<language> <version>" per line, as listed by GET /api/v2/packages.
+
+python 3.12.0
+node 20.11.1
+typescript 5.0.3
+go 1.16.2
+java 15.0.2
+gcc 10.2.0
+rust 1.68.2
