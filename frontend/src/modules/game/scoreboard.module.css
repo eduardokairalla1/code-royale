@@ -1,0 +1,86 @@
+.board {
+  width: 100%;
+}
+
+.title {
+  margin-bottom: var(--space-3);
+  font-size: 26px;
+}
+
+.empty {
+  font-family: var(--font-hand);
+  font-size: 19px;
+  color: var(--ink-soft);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 4px 10px 6px;
+  border-bottom: 2px dashed rgba(26, 26, 26, 0.18);
+  font-family: var(--font-hand);
+  font-size: 20px;
+}
+
+.row[data-self='true'] {
+  background: rgba(255, 213, 74, 0.45);
+  border-radius: 6px;
+}
+
+.position {
+  min-width: 1.4em;
+  font-family: var(--font-display);
+  font-size: 22px;
+  text-align: center;
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.state {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  color: var(--ink-soft);
+}
+
+.state[data-state='judging'] {
+  color: var(--pending);
+  animation: blink 0.9s ease-in-out infinite;
+}
+
+.state[data-state='scored'],
+.state[data-state='perfect'] {
+  font-family: var(--font-display);
+  font-size: 20px;
+  color: var(--ink);
+}
+
+.state[data-state='perfect'] {
+  color: var(--success);
+}
+
+.tests {
+  font-family: var(--font-hand);
+  font-size: 15px;
+  color: var(--ink-soft);
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0.4;
+  }
+}
