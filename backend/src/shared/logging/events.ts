@@ -9,6 +9,11 @@ import type { LogLevel } from 'fastify';
 // --- GLOBALS ---
 export const Event = {
 
+  // the server
+  Started: 'started',
+  StartFailed: 'start_failed',
+  Stopped: 'stopped',
+
   // one per http request
   Request: 'request',
 } as const;

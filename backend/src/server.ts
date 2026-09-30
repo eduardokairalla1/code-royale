@@ -5,6 +5,8 @@
 // --- IMPORTS ---
 import { buildApp } from './app.js';
 import { config } from './config.js';
+import { logStartFailed } from './shared/logging/lifecycle.js';
+import { logStopped } from './shared/logging/lifecycle.js';
 import type { FastifyInstance } from 'fastify';
 
 // --- CODE ---
@@ -34,7 +36,7 @@ async function start(): Promise<void> {
 
   // errors occurred while starting the server: log them and exit the process
   } catch (error) {
-    app.log.error(error);
+    logStartFailed(app.log, error);
     process.exit(1);
   }
 };
@@ -52,14 +54,17 @@ async function stop(
   signal: NodeJS.Signals,
 ): Promise<void> {
 
+  const startedAt = performance.now();
+
   // closed: exit with success
   try {
     await app.close();
+    logStopped(app.log, signal, startedAt);
     process.exit(0);
 
   // failed to close: log it and exit with an error
   } catch (error) {
-    app.log.error(error);
+    logStopped(app.log, signal, startedAt, error);
     process.exit(1);
   }
 }

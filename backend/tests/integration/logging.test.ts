@@ -102,11 +102,16 @@ describe('logging', () => {
     const host = await createRoom(server, 'Host');
     const ids = { room_code: host.code, player_id: host.playerId };
 
-    expect(await logs.find('request', ids)).toMatchObject({
+    // every line says which build wrote it
+    expect(await logs.find('started')).toMatchObject({
       level: 'INFO',
+      addresses: [expect.stringMatching(/^127\.0\.0\.1:\d+$/)],
       service: 'backend',
       version: expect.any(String),
       commit: expect.any(String),
+    });
+
+    expect(await logs.find('request', ids)).toMatchObject({
       route: '/api/rooms',
       status: 201,
       outcome: 'ok',

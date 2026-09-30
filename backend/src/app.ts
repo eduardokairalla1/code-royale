@@ -9,6 +9,7 @@ import { roomRoutes } from './modules/room/room.routes.js';
 import { RoomService } from './modules/room/room.service.js';
 import { systemRoutes } from './modules/system/system.routes.js';
 import { registerErrorHandlers } from './shared/errors/error-handler.js';
+import { logStarted } from './shared/logging/lifecycle.js';
 import { loggerOptions } from './shared/logging/logger.js';
 import { registerRequestLog } from './shared/logging/request-log.js';
 import cors from '@fastify/cors';
@@ -52,6 +53,18 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
   const roomService = new RoomService(new MemoryRoomStore(), {
     maxPlayersPerRoom: options.maxPlayersPerRoom ?? config.maxPlayersPerRoom,
     maxRooms: options.maxRooms ?? config.maxRooms,
+  });
+
+  // what this instance runs with, once it listens; never the secrets
+  app.addHook('onListen', async () => {
+    logStarted(app.log, {
+      addresses: app.addresses().map(({ address, port }) => {
+        return `${address}:${port}`;
+      }),
+      max_rooms: options.maxRooms ?? config.maxRooms,
+      max_players_per_room:
+        options.maxPlayersPerRoom ?? config.maxPlayersPerRoom,
+    });
   });
 
   // one line per request, the health check aside
