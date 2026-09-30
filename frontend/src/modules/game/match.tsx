@@ -83,6 +83,11 @@ export function Match({ room, selfId, clockOffset, send }: MatchProps) {
     return send('submission:draft', draft);
   }, [send]);
 
+  const requestTicket = useCallback(async (language: string) => {
+    const data = await send('lsp:ticket', { language });
+    return (data as { ticket: string }).ticket;
+  }, [send]);
+
   const editor = useEditorDraft(
     `${room.code}:${round.startedAt}`,
     languages,
@@ -241,6 +246,7 @@ export function Match({ room, selfId, clockOffset, send }: MatchProps) {
                   value={editor.draft.code}
                   readOnly={locked}
                   onChange={editor.setCode}
+                  requestTicket={requestTicket}
                 />
               )
               : <Scribble label="Loading languages..." />}
