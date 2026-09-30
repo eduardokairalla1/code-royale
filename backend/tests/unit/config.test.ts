@@ -44,6 +44,7 @@ describe('config', () => {
       maxPlayersPerRoom: 20,
       maxRooms: 1000,
       challengesDir: undefined,
+      pistonTimeoutMs: 60_000,
     });
     expect(config.enabledLanguages).toHaveLength(8);
   });
@@ -61,9 +62,11 @@ describe('config', () => {
   it('turns seconds into milliseconds', async () => {
     const config = await loadConfig({
       RECONNECT_GRACE_SECONDS: '30',
+      PISTON_TIMEOUT_SECONDS: '90',
     });
 
     expect(config.reconnectGraceMs).toBe(30_000);
+    expect(config.pistonTimeoutMs).toBe(90_000);
   });
 
   it('resolves the challenges directory to a url', async () => {
