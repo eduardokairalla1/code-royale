@@ -1,0 +1,11 @@
+# dependencies and build output are rebuilt inside the image
+node_modules/
+dist/
+
+# never bake secrets into the image
+.env
+.env.*
+!.env.example
+
+# logs
+*.log
