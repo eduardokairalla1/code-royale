@@ -1,0 +1,11 @@
+.notice {
+  align-self: center;
+  padding: var(--space-2) var(--space-4);
+  font-family: var(--font-hand);
+  font-size: 21px;
+  text-align: center;
+  background: var(--crown);
+  border: 2px dashed var(--ink);
+  border-radius: 6px;
+  rotate: -0.6deg;
+}
