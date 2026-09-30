@@ -39,6 +39,7 @@ describe('config', () => {
 
     expect(config).toMatchObject({
       maxPlayersPerRoom: 20,
+      maxRooms: 1000,
     });
   });
 

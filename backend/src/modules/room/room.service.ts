@@ -8,6 +8,7 @@ import { RoomCodeGenerationError } from './room.errors.js';
 import { RoomFullError } from './room.errors.js';
 import { RoomInGameError } from './room.errors.js';
 import { RoomNotFoundError } from './room.errors.js';
+import { TooManyRoomsError } from './room.errors.js';
 import type { RoomStore } from './room.store.js';
 import type { Player } from './room.types.js';
 import type { Room } from './room.types.js';
@@ -31,6 +32,8 @@ export interface JoinResult {
  */
 export interface RoomServiceOptions {
   maxPlayersPerRoom: number;
+  // rooms held at once, so creating them cannot eat the memory
+  maxRooms: number;
 }
 
 /**
@@ -55,8 +58,16 @@ export class RoomService {
    * @param {string} hostName The host's name.
    *
    * @returns {Promise<JoinResult>} The new room and its host.
+   *
+   * @throws {TooManyRoomsError} When the server holds as many as it may.
    */
   async create(hostName: string): Promise<JoinResult> {
+
+    const rooms = await this.store.count();
+
+    if (rooms >= this.options.maxRooms) {
+      throw new TooManyRoomsError({ rooms });
+    }
 
     const host = createPlayer(hostName);
 

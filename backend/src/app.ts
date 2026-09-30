@@ -18,6 +18,7 @@ import type { FastifyInstance } from 'fastify';
  */
 export interface AppOptions {
   maxPlayersPerRoom?: number;
+  maxRooms?: number;
   logger?: boolean;
 }
 
@@ -37,6 +38,7 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
   // wire the services
   const roomService = new RoomService(new MemoryRoomStore(), {
     maxPlayersPerRoom: options.maxPlayersPerRoom ?? config.maxPlayersPerRoom,
+    maxRooms: options.maxRooms ?? config.maxRooms,
   });
 
   // register the error handlers

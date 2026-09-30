@@ -25,3 +25,17 @@ describe('players per room', () => {
     expect(third.body.error).toBe('room_full_error');
   });
 });
+
+describe('rooms', () => {
+
+  it('refuses new rooms past the limit', async () => {
+    const server = await startServer({ maxRooms: 1 });
+
+    const first = await request(server, 'POST', '/api/rooms', { name: 'Ana' });
+    const second = await request(server, 'POST', '/api/rooms', { name: 'Bob' });
+
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(503);
+    expect(second.body.error).toBe('too_many_rooms_error');
+  });
+});

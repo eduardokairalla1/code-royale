@@ -34,6 +34,15 @@ export class RoomFullError extends AppError {
 }
 
 /**
+ * Raised when the server already holds as many rooms as it may.
+ */
+export class TooManyRoomsError extends AppError {
+  static override readonly MESSAGE = 'Too many rooms open, try again later!';
+  static override readonly STATUS_CODE = 503;
+  static override readonly LOG_LEVEL = 'warn';
+}
+
+/**
  * Raised when no free room code was found after several attempts.
  */
 export class RoomCodeGenerationError extends AppError {

@@ -37,4 +37,11 @@ export interface RoomStore {
    * @returns {Promise<void>}
    */
   delete(code: string): Promise<void>;
+
+  /**
+   * Count the rooms.
+   *
+   * @returns {Promise<number>} How many rooms exist.
+   */
+  count(): Promise<number>;
 }

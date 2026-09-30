@@ -16,6 +16,7 @@ const envSchema = z.object({
 
   // rooms
   MAX_PLAYERS_PER_ROOM: z.coerce.number().int().positive().default(20),
+  MAX_ROOMS: z.coerce.number().int().positive().default(1000),
 });
 
 // load the .env file into process.env before reading anything
@@ -29,6 +30,7 @@ export const config = {
   port: env.PORT,
   host: env.HOST,
   maxPlayersPerRoom: env.MAX_PLAYERS_PER_ROOM,
+  maxRooms: env.MAX_ROOMS,
 };
 
 // --- CODE ---

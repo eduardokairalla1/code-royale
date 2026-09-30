@@ -45,4 +45,13 @@ export class MemoryRoomStore implements RoomStore {
   async delete(code: string): Promise<void> {
     this.rooms.delete(code);
   }
+
+  /**
+   * Count the rooms.
+   *
+   * @returns {Promise<number>} How many rooms exist.
+   */
+  async count(): Promise<number> {
+    return this.rooms.size;
+  }
 }
