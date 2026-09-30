@@ -1,0 +1,22 @@
+{
+  "id": "collatz",
+  "title": "Collatz steps",
+  "description": "Starting from N, repeat: if the number is even, halve it; if it is odd, triple it and add 1. Print how many steps it takes to reach 1.\n\nConstraints: 1 ≤ N ≤ 10^6",
+  "difficulty": "medium",
+  "timeLimitSeconds": 600,
+  "examples": [
+    { "input": "6", "output": "8" },
+    { "input": "1", "output": "0" }
+  ],
+  "tests": [
+    { "input": "2", "output": "1" },
+    { "input": "3", "output": "7" },
+    { "input": "7", "output": "16" },
+    { "input": "27", "output": "111" },
+    { "input": "97", "output": "118" },
+    { "input": "871", "output": "178" },
+    { "input": "77031", "output": "350" },
+    { "input": "837799", "output": "524" },
+    { "input": "1000000", "output": "152" }
+  ]
+}

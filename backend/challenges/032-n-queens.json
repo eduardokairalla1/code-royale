@@ -1,0 +1,21 @@
+{
+  "id": "n-queens",
+  "title": "N queens",
+  "description": "Print in how many ways N queens can be placed on an N × N chessboard so that no two queens attack each other (same row, column or diagonal).\n\nConstraints: 1 ≤ N ≤ 10",
+  "difficulty": "hard",
+  "timeLimitSeconds": 900,
+  "examples": [
+    { "input": "4", "output": "2" },
+    { "input": "1", "output": "1" }
+  ],
+  "tests": [
+    { "input": "2", "output": "0" },
+    { "input": "3", "output": "0" },
+    { "input": "5", "output": "10" },
+    { "input": "6", "output": "4" },
+    { "input": "7", "output": "40" },
+    { "input": "8", "output": "92" },
+    { "input": "9", "output": "352" },
+    { "input": "10", "output": "724" }
+  ]
+}

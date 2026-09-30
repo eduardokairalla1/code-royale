@@ -1,0 +1,24 @@
+{
+  "id": "is-prime",
+  "title": "Is it prime?",
+  "description": "Read N and print YES if it is a prime number, or NO otherwise.\n\nConstraints: 0 ≤ N ≤ 10^9",
+  "difficulty": "easy",
+  "timeLimitSeconds": 300,
+  "examples": [
+    { "input": "7", "output": "YES" },
+    { "input": "9", "output": "NO" }
+  ],
+  "tests": [
+    { "input": "0", "output": "NO" },
+    { "input": "1", "output": "NO" },
+    { "input": "2", "output": "YES" },
+    { "input": "3", "output": "YES" },
+    { "input": "4", "output": "NO" },
+    { "input": "97", "output": "YES" },
+    { "input": "1000000000", "output": "NO" },
+    { "input": "999999937", "output": "YES" },
+    { "input": "999999929", "output": "YES" },
+    { "input": "999002449", "output": "NO" },
+    { "input": "2147", "output": "NO" }
+  ]
+}

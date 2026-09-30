@@ -1,0 +1,21 @@
+{
+  "id": "count-vowels",
+  "title": "Count the vowels",
+  "description": "Read a line of text and print how many vowels (a, e, i, o, u) it has, in either case.\n\nConstraints: 1 ≤ length ≤ 1000",
+  "difficulty": "easy",
+  "timeLimitSeconds": 300,
+  "examples": [
+    { "input": "Hello World", "output": "3" },
+    { "input": "rhythm", "output": "0" }
+  ],
+  "tests": [
+    { "input": "a", "output": "1" },
+    { "input": "AEIOU aeiou", "output": "10" },
+    { "input": "xyz", "output": "0" },
+    { "input": "Programming is FUN!", "output": "5" },
+    { "input": "The quick brown fox jumps over the lazy dog", "output": "11" },
+    { "input": "bcd fgh 123 !?", "output": "0" },
+    { "input": "Y is not a vowel here", "output": "7" },
+    { "input": "biXXZbdYYXo!YX !!u!!YudaYbbebuaZuZidoeii!o XZb ibXXeeucZ  Yea iiuoboYXuboX!!YuoXeoYuXX!aYd!ca XZb YoucudbZ uZu XeXoZeX!ZX u!oodeeaacZYu!Xuide uuX!u!oXZaeiu!bu  !Xeuco ubZeuibd ocuabauYXbY!ddbYa!XeZ!ZicaiZYY!u  cXduYcY XeboZcc!!YeXoo!cX!doabobaiZi!aaXuiZeuibuuYY!ccYXdoYiuYdZ bXoadZcaZXau!Zdu ZacZXd!XccZcoeoXoboeciceuu!oeuciXuubX!X!ebddabuZioX!ZcaiciXZY!XdbY eX!Y dYeYeZXcb!ebocbZa!i !cZZbXieYbeiceebao!eoaabdaebbZXYii!uYZZ YaoiYdYuoZbZiXZeoeia  oae ie !!be!oiYaXidXa bcYbbacXiYZZeaoYcioood!oZd!ccXaZ XZXoe!cdaaeXuoeicZYbcXaZXeiZX! iaZaZduadZXc o i!dXeidiiuZuX!u!ZYedcZocuaiX o!aZcbeiX ec  baXd YeYaooXX!ZZcXbbc oiXeea YZ!dceeXeicod ZaYZuoi!!!Xc XaciXccabXZ Z!aibiedXcYYdcbiub boeYeZbiuubXXdiZuYibb!b!u!ee!ZdcioXXii Zuoicd!ud i!!io!Yodcu YZ coeibieuecXZedicX!beeYuZooaX iZoibZ!uZZZ!XXdoiZiao caeX eciYZYo!!uuiaa!dZbZeia!d!uXeYZibX dX!abcidudYZc ebYo XZYXcbaeoacX XduZZiiiiYueuieaZucau!ie!udieX oedYaob  ZZXZX!euYbXXYiuiZiicbX!c!eXXoZbYdauddoXXcXd!e! ucXZiiZoXY XdcYX c cc!!ZYa!Zae!ecceX icucc a!cZcoZa", "output": "381" }
+  ]
+}

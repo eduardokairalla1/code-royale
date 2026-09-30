@@ -1,0 +1,21 @@
+{
+  "id": "town-population",
+  "title": "Town population",
+  "description": "In a town there are X men, each man has X wives and each wife has X kids. Read X and print the total number of people in the town.\n\nConstraints: 0 ≤ X ≤ 300",
+  "difficulty": "easy",
+  "timeLimitSeconds": 900,
+  "examples": [
+    { "input": "7", "output": "399" }
+  ],
+  "tests": [
+    { "input": "0", "output": "0" },
+    { "input": "1", "output": "3" },
+    { "input": "2", "output": "14" },
+    { "input": "3", "output": "39" },
+    { "input": "10", "output": "1110" },
+    { "input": "57", "output": "188499" },
+    { "input": "123", "output": "1876119" },
+    { "input": "299", "output": "26820599" },
+    { "input": "300", "output": "27090300" }
+  ]
+}
