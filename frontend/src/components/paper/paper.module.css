@@ -1,0 +1,9 @@
+.paper {
+  position: relative;
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  padding: var(--space-5);
+}
