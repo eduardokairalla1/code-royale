@@ -75,5 +75,14 @@ export function createSocketServer(app: FastifyInstance): AppServer {
     cors: { origin: config.corsOrigins },
   });
 
+  // drop every socket before fastify closes, or the close hangs on them
+  app.addHook('preClose', async () => {
+    for (const socket of io.sockets.sockets.values()) {
+      socket.data.event?.set({ closed_by: 'shutdown' });
+    }
+
+    io.disconnectSockets(true);
+  });
+
   return io;
 }
