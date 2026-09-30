@@ -32,6 +32,7 @@ const envSchema = z.object({
     .default(['http://localhost:5173']),
 
   // rooms
+  EMPTY_ROOM_TTL_SECONDS: z.coerce.number().int().positive().default(60),
   RECONNECT_GRACE_SECONDS: z.coerce.number().int().positive().default(10),
   MAX_PLAYERS_PER_ROOM: z.coerce.number().int().positive().default(20),
   MAX_ROOMS: z.coerce.number().int().positive().default(1000),
@@ -51,6 +52,7 @@ export const config = {
   version: env.VERSION,
   commit: env.COMMIT,
   corsOrigins: env.CORS_ORIGIN,
+  emptyRoomTtlMs: env.EMPTY_ROOM_TTL_SECONDS * 1000,
   reconnectGraceMs: env.RECONNECT_GRACE_SECONDS * 1000,
   maxPlayersPerRoom: env.MAX_PLAYERS_PER_ROOM,
   maxRooms: env.MAX_ROOMS,

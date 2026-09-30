@@ -63,6 +63,17 @@ export function normalizeRoomCode(code: string): string {
 }
 
 /**
+ * Tell whether any player of a room has a live socket.
+ *
+ * @param {Room} room The room.
+ *
+ * @returns {boolean} True when at least one player is connected.
+ */
+export function hasConnectedPlayers(room: Room): boolean {
+  return [...room.players.values()].some((player) => player.socketId !== null);
+}
+
+/**
  * Pick the next host: the oldest connected player, else the oldest.
  *
  * @param {Room} room The room, already without the old host.

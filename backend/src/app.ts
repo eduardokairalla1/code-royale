@@ -25,6 +25,7 @@ import type { FastifyInstance } from 'fastify';
  * What the app can be built with; tests swap in fakes and short timers.
  */
 export interface AppOptions {
+  emptyRoomTtlMs?: number;
   reconnectGraceMs?: number;
   maxPlayersPerRoom?: number;
   maxRooms?: number;
@@ -55,6 +56,7 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
 
   // wire the services
   const roomService = new RoomService(new MemoryRoomStore(), {
+    emptyRoomTtlMs: options.emptyRoomTtlMs ?? config.emptyRoomTtlMs,
     reconnectGraceMs: options.reconnectGraceMs ?? config.reconnectGraceMs,
     maxPlayersPerRoom: options.maxPlayersPerRoom ?? config.maxPlayersPerRoom,
     maxRooms: options.maxRooms ?? config.maxRooms,

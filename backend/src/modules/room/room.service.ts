@@ -18,6 +18,7 @@ import type { RoomStore } from './room.store.js';
 import type { Player } from './room.types.js';
 import type { Room } from './room.types.js';
 import { createPlayer } from './room.utils.js';
+import { hasConnectedPlayers } from './room.utils.js';
 import { normalizeRoomCode } from './room.utils.js';
 import { pickNextHost } from './room.utils.js';
 import type { FastifyBaseLogger } from 'fastify';
@@ -28,8 +29,8 @@ const MAX_ROOM_CODE_ATTEMPTS = 10;
 // why a player left: on their own, or never came back in time
 type LeaveReason = 'leave' | 'grace_expired';
 
-// why a room was dropped: its last player left
-type DeleteReason = 'empty';
+// why a room was dropped: its last player left, or nobody came back
+type DeleteReason = 'empty' | 'expired';
 
 // --- CODE ---
 /**
@@ -44,6 +45,8 @@ export interface JoinResult {
  * Settings and dependencies of the room service.
  */
 export interface RoomServiceOptions {
+  // how long a room with nobody connected is kept
+  emptyRoomTtlMs: number;
   // how long a disconnected player has to come back before being removed
   reconnectGraceMs: number;
   maxPlayersPerRoom: number;
@@ -63,8 +66,9 @@ export type RoomChangeListener = (room: Room) => void;
 export class RoomService {
   private readonly listeners: RoomChangeListener[] = [];
 
-  // pending removals, by player id
+  // pending removals, by player id and by room code
   private readonly playerTimers: TimerRegistry;
+  private readonly roomTimers: TimerRegistry;
 
   /**
    * Create the service.
@@ -77,6 +81,7 @@ export class RoomService {
     private readonly options: RoomServiceOptions,
   ) {
     this.playerTimers = new TimerRegistry(options.logger, 'player_grace');
+    this.roomTimers = new TimerRegistry(options.logger, 'room_ttl');
   }
 
   /**
@@ -117,6 +122,7 @@ export class RoomService {
       createdAt: Date.now(),
     };
 
+    // nobody connected yet: the room expires if the host never shows up
     await this.update(room);
 
     log(this.options.logger, 'info', Event.RoomCreated, {
@@ -377,6 +383,25 @@ export class RoomService {
   }
 
   /**
+   * Delete a room whose ttl ran out, unless someone came back.
+   *
+   * @param {string} code The room code.
+   *
+   * @returns {Promise<void>}
+   */
+  private async expireRoom(code: string): Promise<void> {
+
+    const room = await this.store.get(code);
+
+    // someone reconnected in the meantime: keep it
+    if (!room || hasConnectedPlayers(room)) {
+      return;
+    }
+
+    await this.deleteRoom(room, 'expired');
+  }
+
+  /**
    * Delete a room and cancel all of its pending timers.
    *
    * @param {Room} room The room to delete.
@@ -390,6 +415,8 @@ export class RoomService {
       this.playerTimers.clear(playerId);
     }
 
+    this.roomTimers.clear(room.code);
+
     await this.store.delete(room.code);
 
     log(this.options.logger, 'info', Event.RoomDeleted, {
@@ -400,7 +427,7 @@ export class RoomService {
   }
 
   /**
-   * Drop disconnected players who do not come back in time.
+   * Expire empty rooms and drop disconnected players who do not come back.
    *
    * @param {Room} room The room that just changed.
    *
@@ -409,6 +436,24 @@ export class RoomService {
   private scheduleCleanup(room: Room): void {
 
     const players = [...room.players.values()];
+
+    // nobody connected: players wait together with the room
+    if (!hasConnectedPlayers(room)) {
+      for (const player of players) {
+        this.playerTimers.clear(player.id);
+      }
+
+      this.roomTimers.start(
+        room.code,
+        this.options.emptyRoomTtlMs,
+        () => this.expireRoom(room.code),
+      );
+
+      return;
+    }
+
+    // someone connected: the room stays
+    this.roomTimers.clear(room.code);
 
     for (const player of players) {
 

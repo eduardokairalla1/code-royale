@@ -6,6 +6,7 @@
 import type { Player } from '../../src/modules/room/room.types.js';
 import type { Room } from '../../src/modules/room/room.types.js';
 import { createPlayer } from '../../src/modules/room/room.utils.js';
+import { hasConnectedPlayers } from '../../src/modules/room/room.utils.js';
 import { normalizeRoomCode } from '../../src/modules/room/room.utils.js';
 import { pickNextHost } from '../../src/modules/room/room.utils.js';
 import { toPublicRoom } from '../../src/modules/room/room.utils.js';
@@ -78,6 +79,14 @@ describe('pickNextHost', () => {
 
   it('returns nobody for an empty room', () => {
     expect(pickNextHost(roomWith([]))).toBeUndefined();
+  });
+});
+
+describe('hasConnectedPlayers', () => {
+
+  it('tells whether anyone has a socket', () => {
+    expect(hasConnectedPlayers(roomWith([player('Ana', false)]))).toBe(false);
+    expect(hasConnectedPlayers(roomWith([player('Ana', true)]))).toBe(true);
   });
 });
 

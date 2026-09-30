@@ -16,6 +16,7 @@ import { afterEach } from 'vitest';
 // --- GLOBALS ---
 // short timers, so tests do not wait for the production ones
 export const TEST_TIMINGS = {
+  emptyRoomTtlMs: 600,
   reconnectGraceMs: 300,
 };
 
@@ -54,6 +55,7 @@ export async function startServer(
 
   const app = buildApp({
     logger: false,
+    emptyRoomTtlMs: TEST_TIMINGS.emptyRoomTtlMs,
     reconnectGraceMs: TEST_TIMINGS.reconnectGraceMs,
     ...options,
   });

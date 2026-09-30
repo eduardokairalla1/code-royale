@@ -1,11 +1,12 @@
 /**
- * Presence: connections, reconnections and host hand-over.
+ * Presence: connections, reconnections, host hand-over and expiry.
  */
 
 // --- IMPORTS ---
 import type { PublicRoom } from '../../src/modules/room/room.types.js';
 import { createRoom } from '../helpers/test-server.js';
 import { joinRoom } from '../helpers/test-server.js';
+import { request } from '../helpers/test-server.js';
 import { sleep } from '../helpers/test-server.js';
 import { startServer } from '../helpers/test-server.js';
 import { TEST_TIMINGS } from '../helpers/test-server.js';
@@ -134,5 +135,49 @@ describe('leaving', () => {
     await sleep(50);
 
     expect(anaClient.disconnectReason).toBe('io server disconnect');
+  });
+});
+
+describe('empty rooms', () => {
+
+  it('keeps a room nobody is connected to until the ttl', async () => {
+    const server = await startServer();
+    const ana = await createRoom(server, 'Ana');
+    const client = await TestClient.join(server, ana);
+
+    client.socket.disconnect();
+    await sleep(TEST_TIMINGS.emptyRoomTtlMs / 3);
+
+    const during = await request(server, 'GET', `/api/rooms/${ana.code}`);
+    expect(during.status).toBe(200);
+
+    await sleep(TEST_TIMINGS.emptyRoomTtlMs);
+
+    const after = await request(server, 'GET', `/api/rooms/${ana.code}`);
+    expect(after.status).toBe(404);
+  });
+
+  it('lets a player back into an empty room within the ttl', async () => {
+    const server = await startServer();
+    const ana = await createRoom(server, 'Ana');
+    const first = await TestClient.join(server, ana);
+
+    first.socket.disconnect();
+    await sleep(TEST_TIMINGS.emptyRoomTtlMs / 3);
+
+    const back = await TestClient.join(server, ana);
+
+    expect(back.connectError).toBeNull();
+    expect(roster(await back.waitFor(() => true))).toBe('Ana*+');
+  });
+
+  it('deletes a room whose host never connected', async () => {
+    const server = await startServer();
+    const ana = await createRoom(server, 'Ana');
+
+    await sleep(TEST_TIMINGS.emptyRoomTtlMs * 1.5);
+
+    const { status } = await request(server, 'GET', `/api/rooms/${ana.code}`);
+    expect(status).toBe(404);
   });
 });
