@@ -6,6 +6,7 @@
 import { Annotate } from '../../components/annotate/annotate.tsx';
 import { Button } from '../../components/button/button.tsx';
 import { Paper } from '../../components/paper/paper.tsx';
+import { describeUnknownError } from '../../shared/errors.ts';
 import { LanguagePicker } from '../language/language-picker.tsx';
 import styles from './lobby.module.css';
 import { PlayerList } from './player-list.tsx';
@@ -26,18 +27,43 @@ const COPIED_MS = 1400;
 export interface LobbyProps {
   room: Room;
   selfId: string;
+  // asks the server to start a round
+  onStart: () => Promise<void>;
 }
 
 /**
  * Render the lobby of a room.
  *
- * @param {LobbyProps} props The room and who is looking.
+ * @param {LobbyProps} props The room, who is looking and the start command.
  *
  * @returns {JSX.Element} The lobby.
  */
-export function Lobby({ room, selfId }: LobbyProps) {
+export function Lobby({ room, selfId, onStart }: LobbyProps) {
 
   const isHost = room.hostId === selfId;
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  /**
+   * Start the round, showing why when it fails.
+   *
+   * @returns {Promise<void>}
+   */
+  async function handleStart(): Promise<void> {
+
+    setStarting(true);
+    setError(null);
+
+    // started: the room state takes the screen away from here
+    try {
+      await onStart();
+
+    // refused: say why and let them try again
+    } catch (reason) {
+      setError(describeUnknownError(reason));
+      setStarting(false);
+    }
+  }
 
   return (
     <div className={styles.lobby}>
@@ -53,7 +79,20 @@ export function Lobby({ room, selfId }: LobbyProps) {
       <LanguagePicker />
 
       <div className={styles.footer}>
-        {!isHost && <WaitingForHost />}
+        {isHost
+          ? (
+            <>
+              <Button
+                size="lg"
+                disabled={starting}
+                onClick={() => void handleStart()}
+              >
+                {starting ? 'Starting...' : 'Start match'}
+              </Button>
+              {error && <p className={styles.error}>{error}</p>}
+            </>
+          )
+          : <WaitingForHost />}
       </div>
     </div>
   );
