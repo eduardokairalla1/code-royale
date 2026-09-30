@@ -9,6 +9,7 @@ import { Event } from '../../shared/logging/events.js';
 import { log } from '../../shared/logging/events.js';
 import { TimerRegistry } from '../../shared/timers.js';
 import { InvalidPlayerTokenError } from './room.errors.js';
+import { NotHostError } from './room.errors.js';
 import { RoomCodeGenerationError } from './room.errors.js';
 import { RoomFullError } from './room.errors.js';
 import { RoomInGameError } from './room.errors.js';
@@ -119,6 +120,8 @@ export class RoomService {
       hostId: host.id,
       status: 'LOBBY',
       players: new Map([[host.id, host]]),
+      round: null,
+      playedChallengeIds: [],
       createdAt: Date.now(),
     };
 
@@ -196,6 +199,28 @@ export class RoomService {
 
     if (!room) {
       throw new RoomNotFoundError({ code: normalizedCode });
+    }
+
+    return room;
+  }
+
+  /**
+   * Find a room on behalf of its host, for host-only actions.
+   *
+   * @param {string} code The room code, in any case.
+   * @param {string} playerId Who is asking.
+   *
+   * @returns {Promise<Room>} The room.
+   *
+   * @throws {RoomNotFoundError} When the room does not exist.
+   * @throws {NotHostError} When the player is not the host.
+   */
+  async getAsHost(code: string, playerId: string): Promise<Room> {
+
+    const room = await this.getOrThrow(code);
+
+    if (room.hostId !== playerId) {
+      throw new NotHostError({ code: room.code, playerId });
     }
 
     return room;
@@ -423,6 +448,7 @@ export class RoomService {
       room_code: room.code,
       reason,
       age_ms: Date.now() - room.createdAt,
+      rounds: room.playedChallengeIds.length,
     });
   }
 

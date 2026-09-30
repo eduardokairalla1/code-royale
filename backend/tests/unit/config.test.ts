@@ -43,6 +43,7 @@ describe('config', () => {
       reconnectGraceMs: 10_000,
       maxPlayersPerRoom: 20,
       maxRooms: 1000,
+      challengesDir: undefined,
     });
     expect(config.enabledLanguages).toHaveLength(8);
   });
@@ -63,6 +64,12 @@ describe('config', () => {
     });
 
     expect(config.reconnectGraceMs).toBe(30_000);
+  });
+
+  it('resolves the challenges directory to a url', async () => {
+    const config = await loadConfig({ CHALLENGES_DIR: '/srv/challenges' });
+
+    expect(String(config.challengesDir)).toBe('file:///srv/challenges/');
   });
 
   it.each([

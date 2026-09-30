@@ -5,6 +5,7 @@
 // --- IMPORTS ---
 import { generatePlayerId } from '../../shared/ids.js';
 import { generateToken } from '../../shared/ids.js';
+import { toPublicRound } from '../game/game.utils.js';
 import type { Player } from './room.types.js';
 import type { PublicRoom } from './room.types.js';
 import type { Room } from './room.types.js';
@@ -29,6 +30,7 @@ export function toPublicRoom(room: Room): PublicRoom {
       isHost: player.id === room.hostId,
       connected: player.socketId !== null,
     })),
+    round: room.round ? toPublicRound(room.round) : null,
   };
 }
 

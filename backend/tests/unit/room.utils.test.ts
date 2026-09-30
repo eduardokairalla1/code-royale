@@ -29,6 +29,8 @@ function roomWith(players: Player[]): Room {
     hostId: players[0]?.id ?? '',
     status: 'LOBBY',
     players: new Map(players.map((player) => [player.id, player])),
+    round: null,
+    playedChallengeIds: [],
     createdAt: 0,
   };
 }
