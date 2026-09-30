@@ -4,7 +4,7 @@
 
 // --- CODE ---
 /**
- * The code in the editor.
+ * The code in the editor, as sent to the backend.
  */
 export interface Draft {
   language: string;

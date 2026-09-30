@@ -11,6 +11,7 @@ import { Select } from '../../components/select/select.tsx';
 import { Stamp } from '../../components/stamp/stamp.tsx';
 import { useLanguages } from '../language/language.api.ts';
 import type { Room } from '../room/room.types.ts';
+import type { Draft } from './game.types.ts';
 import styles from './match.module.css';
 import { Problem } from './problem.tsx';
 import { Scoreboard } from './scoreboard.tsx';
@@ -50,16 +51,17 @@ export interface MatchProps {
   room: Room;
   selfId: string;
   clockOffset: number;
+  send: (event: string, payload?: unknown) => Promise<unknown>;
 }
 
 /**
  * Render the round for a player taking part in it.
  *
- * @param {MatchProps} props The room, who is playing and the clock.
+ * @param {MatchProps} props The room, who is playing, the clock and send.
  *
  * @returns {JSX.Element} The match screen.
  */
-export function Match({ room, selfId, clockOffset }: MatchProps) {
+export function Match({ room, selfId, clockOffset, send }: MatchProps) {
 
   // the room view only renders the match during a round
   const round = room.round as NonNullable<Room['round']>;
@@ -69,9 +71,14 @@ export function Match({ room, selfId, clockOffset }: MatchProps) {
   const remainingMs = round.endsAt - now;
   const timeUp = remainingMs <= 0;
 
+  const syncDraft = useCallback((draft: Draft) => {
+    return send('submission:draft', draft);
+  }, [send]);
+
   const editor = useEditorDraft(
     `${room.code}:${round.startedAt}`,
     languages,
+    syncDraft,
   );
 
   const [pendingLanguage, setPendingLanguage] = useState<string | null>(null);
@@ -84,6 +91,7 @@ export function Match({ room, selfId, clockOffset }: MatchProps) {
   const locked = timeUp;
 
   useTimeUp(timeUp, () => {
+    editor.flush();
     setStamp({ text: 'TIME!', color: 'var(--gem)' });
   });
 
@@ -147,6 +155,10 @@ export function Match({ room, selfId, clockOffset }: MatchProps) {
               )
               : <Scribble label="Loading languages..." />}
           </Suspense>
+
+          {timeUp && (
+            <Scribble label="Time is up! Submitting your code..." />
+          )}
         </div>
       </div>
 
