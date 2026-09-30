@@ -41,6 +41,9 @@ export const Event = {
   ExamplesRun: 'examples_run',
   SubmissionJudged: 'submission_judged',
 
+  // language servers
+  TicketIssued: 'ticket_issued',
+
   TimerFailed: 'timer_failed',
 } as const;
 

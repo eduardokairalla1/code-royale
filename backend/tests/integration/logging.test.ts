@@ -86,12 +86,20 @@ class LogLines {
 /**
  * Start a server whose logs the test reads.
  *
+ * @param {object} options Extra app options.
+ *
  * @returns {Promise<{ server: TestServer, logs: LogLines }>} Both.
  */
-async function startLogged(): Promise<{ server: TestServer; logs: LogLines }> {
+async function startLogged(
+  options: { lspSecret?: string } = {},
+): Promise<{ server: TestServer; logs: LogLines }> {
 
   const logs = new LogLines();
-  const server = await startServer({ logger: true, logStream: logs });
+  const server = await startServer({
+    logger: true,
+    logStream: logs,
+    ...options,
+  });
 
   return { server, logs };
 }
@@ -212,5 +220,29 @@ describe('logging', () => {
       level: 'WARN',
       error: 'invalid_player_token_error',
     });
+  });
+
+  it('logs the ticket id the lsp service logs too', async () => {
+    const secret = 'test-secret-test-secret-test-secret';
+    const { server, logs } = await startLogged({ lspSecret: secret });
+
+    const host = await createRoom(server, 'Host');
+    const client = await TestClient.join(server, host);
+
+    await client.emit('game:start');
+    const response = await client.emit('lsp:ticket', { language: 'python' });
+
+    const [payload = ''] = response.data.ticket.split('.');
+    const claims = JSON.parse(Buffer.from(payload, 'base64url').toString());
+
+    expect(await logs.find('ticket_issued')).toMatchObject({
+      room_code: host.code,
+      player_id: host.playerId,
+      language: 'python',
+      ticket_id: claims.jti,
+    });
+
+    // the signed ticket itself stays out
+    expect(logs.raw.join('\n')).not.toContain(response.data.ticket);
   });
 });
