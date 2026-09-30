@@ -1,5 +1,5 @@
 /**
- * Http api: rooms, health and the error envelope.
+ * Http api: rooms, languages, health and the error envelope.
  */
 
 // --- IMPORTS ---
@@ -148,6 +148,18 @@ describe('misc', () => {
     const server = await startServer();
 
     expect((await request(server, 'GET', '/health')).status).toBe(404);
+  });
+
+  it('lists the languages with their starting code', async () => {
+    const server = await startServer();
+
+    const { body } = await request(server, 'GET', '/api/languages');
+
+    expect(body.map((language: any) => language.id)).toEqual([
+      'python', 'javascript', 'typescript', 'go', 'java',
+      'c', 'cpp', 'rust',
+    ]);
+    expect(body.every((language: any) => language.template)).toBe(true);
   });
 
   it('allows the configured frontend origin', async () => {
