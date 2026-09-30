@@ -1,13 +1,38 @@
 /**
- * Round helpers: clocks and lookups.
+ * Round helpers: clocks, labels and lookups.
  */
 
 // --- IMPORTS ---
 import type { Player } from '../room/room.types.ts';
 import type { PlayerResult } from '../room/room.types.ts';
 import type { Room } from '../room/room.types.ts';
+import type { TestStatus } from './game.types.ts';
+import type { Verdict } from './game.types.ts';
+
+// --- GLOBALS ---
+// what each status means, in the player's words
+const STATUS_LABELS: Record<TestStatus | 'ACCEPTED', string> = {
+  OK: 'Passed',
+  ACCEPTED: 'Accepted',
+  WRONG_ANSWER: 'Wrong answer',
+  COMPILE_ERROR: 'Compile error',
+  RUNTIME_ERROR: 'Runtime error',
+  TIME_LIMIT: 'Time limit exceeded',
+  OUTPUT_LIMIT: 'Output too large',
+};
 
 // --- CODE ---
+/**
+ * Describe a test or verdict status.
+ *
+ * @param {TestStatus | Verdict['status']} status The status.
+ *
+ * @returns {string} Its label.
+ */
+export function describeStatus(status: TestStatus | Verdict['status']): string {
+  return STATUS_LABELS[status];
+}
+
 /**
  * Format a duration as a clock.
  *
