@@ -44,14 +44,17 @@ describe('config', () => {
       maxPlayersPerRoom: 20,
       maxRooms: 1000,
     });
+    expect(config.enabledLanguages).toHaveLength(8);
   });
 
   it('splits comma separated lists, ignoring spaces and blanks', async () => {
     const config = await loadConfig({
       CORS_ORIGIN: 'https://a.com, https://b.br,,',
+      ENABLED_LANGUAGES: 'python , javascript',
     });
 
     expect(config.corsOrigins).toEqual(['https://a.com', 'https://b.br']);
+    expect(config.enabledLanguages).toEqual(['python', 'javascript']);
   });
 
   it('turns seconds into milliseconds', async () => {
@@ -63,6 +66,7 @@ describe('config', () => {
   });
 
   it.each([
+    [{ ENABLED_LANGUAGES: 'python,cobol' }, /Use only/],
     [{ LOG_LEVEL: 'verbose' }, /LOG_LEVEL/],
     [{ MAX_PLAYERS_PER_ROOM: '0' }, /MAX_PLAYERS_PER_ROOM/],
     [{ CORS_ORIGIN: ' , ' }, /CORS_ORIGIN/],

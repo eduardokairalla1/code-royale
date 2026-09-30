@@ -13,6 +13,20 @@ import { expect } from 'vitest';
 import { it } from 'vitest';
 
 // --- CODE ---
+describe('enabled languages', () => {
+
+  it('lists only the enabled languages', async () => {
+    const server = await startServer({
+      enabledLanguages: ['python', 'javascript'],
+    });
+
+    const { body } = await request(server, 'GET', '/api/languages');
+
+    expect(body.map((language: any) => language.id))
+      .toEqual(['python', 'javascript']);
+  });
+});
+
 describe('players per room', () => {
 
   it('refuses players past the limit', async () => {

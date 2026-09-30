@@ -4,6 +4,8 @@
 
 // --- IMPORTS ---
 import { config } from './config.js';
+import { pickLanguages } from './modules/language/language.catalog.js';
+import { languageRoutes } from './modules/language/language.routes.js';
 import { MemoryRoomStore } from './modules/room/memory-room.store.js';
 import { roomRoutes } from './modules/room/room.routes.js';
 import { RoomService } from './modules/room/room.service.js';
@@ -29,6 +31,7 @@ export interface AppOptions {
   reconnectGraceMs?: number;
   maxPlayersPerRoom?: number;
   maxRooms?: number;
+  enabledLanguages?: string[];
   logger?: boolean;
   logStream?: { write(line: string): void };
 }
@@ -63,12 +66,15 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
     logger: app.log,
   });
 
+  const enabledLanguages = options.enabledLanguages ?? config.enabledLanguages;
+
   // what this instance runs with, once it listens; never the secrets
   app.addHook('onListen', async () => {
     logStarted(app.log, {
       addresses: app.addresses().map(({ address, port }) => {
         return `${address}:${port}`;
       }),
+      languages: enabledLanguages,
       max_rooms: options.maxRooms ?? config.maxRooms,
       max_players_per_room:
         options.maxPlayersPerRoom ?? config.maxPlayersPerRoom,
@@ -88,6 +94,9 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
   app.register(async (api) => {
     api.register(systemRoutes);
     api.register(roomRoutes, { roomService });
+    api.register(languageRoutes, {
+      languages: pickLanguages(enabledLanguages),
+    });
   }, { prefix: API_PREFIX });
 
   // register the socket handlers

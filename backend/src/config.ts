@@ -3,10 +3,13 @@
  */
 
 // --- IMPORTS ---
+import { LANGUAGES } from './modules/language/language.catalog.js';
 import { config as loadEnv } from 'dotenv';
 import { z } from 'zod';
 
 // --- GLOBALS ---
+const LANGUAGE_IDS = LANGUAGES.map((language) => language.id);
+
 // "a, b,,c" -> ["a", "b", "c"]
 const commaList = z.string().transform((value) => {
   return value.split(',').map((item) => item.trim()).filter(Boolean);
@@ -36,6 +39,14 @@ const envSchema = z.object({
   RECONNECT_GRACE_SECONDS: z.coerce.number().int().positive().default(10),
   MAX_PLAYERS_PER_ROOM: z.coerce.number().int().positive().default(20),
   MAX_ROOMS: z.coerce.number().int().positive().default(1000),
+
+  // languages players may pick, comma separated; all of them when unset
+  ENABLED_LANGUAGES: commaList
+    .pipe(z.array(z.string()).min(1))
+    .refine((ids) => ids.every((id) => LANGUAGE_IDS.includes(id)), {
+      message: `Use only: ${LANGUAGE_IDS.join(', ')}`,
+    })
+    .default(LANGUAGE_IDS),
 });
 
 // load the .env file into process.env before reading anything
@@ -56,6 +67,7 @@ export const config = {
   reconnectGraceMs: env.RECONNECT_GRACE_SECONDS * 1000,
   maxPlayersPerRoom: env.MAX_PLAYERS_PER_ROOM,
   maxRooms: env.MAX_ROOMS,
+  enabledLanguages: env.ENABLED_LANGUAGES,
 };
 
 // --- CODE ---
