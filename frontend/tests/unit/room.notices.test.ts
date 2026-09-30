@@ -28,7 +28,7 @@ function roomWith(names: string[], hostId: string): Room {
     connected: true,
   }));
 
-  return { code: 'ABCDE', status: 'LOBBY', hostId, players };
+  return { code: 'ABCDE', status: 'LOBBY', hostId, players, round: null };
 }
 
 describe('describeRoomChanges', () => {
