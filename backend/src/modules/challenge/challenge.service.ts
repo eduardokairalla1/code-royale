@@ -86,6 +86,15 @@ export class ChallengeService {
   }
 
   /**
+   * How many challenges there are.
+   *
+   * @returns {number} The number of challenges.
+   */
+  get count(): number {
+    return this.challenges.length;
+  }
+
+  /**
    * Pick a random challenge, avoiding the ones already played.
    *
    * @param {string[]} playedIds Ids the room already played.

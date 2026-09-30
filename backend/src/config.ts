@@ -5,6 +5,8 @@
 // --- IMPORTS ---
 import { LANGUAGES } from './modules/language/language.catalog.js';
 import { config as loadEnv } from 'dotenv';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { z } from 'zod';
 
 // --- GLOBALS ---
@@ -40,6 +42,9 @@ const envSchema = z.object({
   MAX_PLAYERS_PER_ROOM: z.coerce.number().int().positive().default(20),
   MAX_ROOMS: z.coerce.number().int().positive().default(1000),
 
+  // challenges: backend/challenges when unset
+  CHALLENGES_DIR: z.string().min(1).optional(),
+
   // languages players may pick, comma separated; all of them when unset
   ENABLED_LANGUAGES: commaList
     .pipe(z.array(z.string()).min(1))
@@ -67,6 +72,7 @@ export const config = {
   reconnectGraceMs: env.RECONNECT_GRACE_SECONDS * 1000,
   maxPlayersPerRoom: env.MAX_PLAYERS_PER_ROOM,
   maxRooms: env.MAX_ROOMS,
+  challengesDir: toDirectoryUrl(env.CHALLENGES_DIR),
   enabledLanguages: env.ENABLED_LANGUAGES,
 };
 
@@ -88,4 +94,21 @@ function parseEnv(): z.infer<typeof envSchema> {
   }
 
   return result.data;
+}
+
+/**
+ * Turn a directory path, relative or absolute, into a file url.
+ *
+ * @param {string | undefined} path The directory, if set.
+ *
+ * @returns {URL | undefined} The directory url, ending in a slash.
+ */
+function toDirectoryUrl(path: string | undefined): URL | undefined {
+
+  // unset: the default applies
+  if (path === undefined) {
+    return undefined;
+  }
+
+  return pathToFileURL(`${resolve(path)}/`);
 }

@@ -57,3 +57,12 @@ export class InvalidPlayerTokenError extends AppError {
   static override readonly STATUS_CODE = 401;
   static override readonly LOG_LEVEL = 'warn';
 }
+
+/**
+ * Raised when someone other than the host tries a host-only action.
+ */
+export class NotHostError extends AppError {
+  static override readonly MESSAGE = 'Only the host can do this!';
+  static override readonly STATUS_CODE = 403;
+  static override readonly LOG_LEVEL = 'warn';
+}

@@ -31,6 +31,9 @@ export const Event = {
   HostChanged: 'host_changed',
   RoomDeleted: 'room_deleted',
 
+  // rounds
+  RoundStarted: 'round_started',
+
   TimerFailed: 'timer_failed',
 } as const;
 

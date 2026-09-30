@@ -4,6 +4,9 @@
 
 // --- IMPORTS ---
 import { config } from './config.js';
+import { ChallengeService } from './modules/challenge/challenge.service.js';
+import { GameService } from './modules/game/game.service.js';
+import { registerGameSocket } from './modules/game/game.socket.js';
 import { pickLanguages } from './modules/language/language.catalog.js';
 import { languageRoutes } from './modules/language/language.routes.js';
 import { MemoryRoomStore } from './modules/room/memory-room.store.js';
@@ -27,6 +30,7 @@ import type { FastifyInstance } from 'fastify';
  * What the app can be built with; tests swap in fakes and short timers.
  */
 export interface AppOptions {
+  challengeService?: ChallengeService;
   emptyRoomTtlMs?: number;
   reconnectGraceMs?: number;
   maxPlayersPerRoom?: number;
@@ -66,6 +70,15 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
     logger: app.log,
   });
 
+  const challengeService = options.challengeService
+    ?? ChallengeService.load(config.challengesDir);
+
+  const gameService = new GameService(
+    roomService,
+    challengeService,
+    app.log,
+  );
+
   const enabledLanguages = options.enabledLanguages ?? config.enabledLanguages;
 
   // what this instance runs with, once it listens; never the secrets
@@ -75,6 +88,7 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
         return `${address}:${port}`;
       }),
       languages: enabledLanguages,
+      challenges: challengeService.count,
       max_rooms: options.maxRooms ?? config.maxRooms,
       max_players_per_room:
         options.maxPlayersPerRoom ?? config.maxPlayersPerRoom,
@@ -103,6 +117,7 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
   const io = createSocketServer(app);
 
   registerRoomSocket(io, roomService, app.log);
+  registerGameSocket(io, gameService, app.log);
 
   return app;
 }

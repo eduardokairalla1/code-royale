@@ -5,6 +5,9 @@
 // --- IMPORTS ---
 import type { AppOptions } from '../../src/app.js';
 import { buildApp } from '../../src/app.js';
+import {
+  ChallengeService,
+} from '../../src/modules/challenge/challenge.service.js';
 import type { PublicRoom } from '../../src/modules/room/room.types.js';
 import type { CommandResponse } from '../../src/shared/socket-command.js';
 import { SOCKET_PATH } from '../../src/socket.js';
@@ -14,10 +17,14 @@ import type { Socket } from 'socket.io-client';
 import { afterEach } from 'vitest';
 
 // --- GLOBALS ---
+const FIXTURES = new URL('../fixtures/challenges/', import.meta.url);
+
 // short timers, so tests do not wait for the production ones
 export const TEST_TIMINGS = {
   emptyRoomTtlMs: 600,
   reconnectGraceMs: 300,
+  // fixture challenges last 2 seconds
+  roundMs: 2000,
 };
 
 // everything opened by a test, closed after it
@@ -43,7 +50,7 @@ export interface TestServer {
 }
 
 /**
- * Start a server without logs.
+ * Start a server with fixture challenges and short timers, no logs.
  *
  * @param {AppOptions} options Overrides for the test defaults.
  *
@@ -55,6 +62,7 @@ export async function startServer(
 
   const app = buildApp({
     logger: false,
+    challengeService: ChallengeService.load(FIXTURES),
     emptyRoomTtlMs: TEST_TIMINGS.emptyRoomTtlMs,
     reconnectGraceMs: TEST_TIMINGS.reconnectGraceMs,
     ...options,

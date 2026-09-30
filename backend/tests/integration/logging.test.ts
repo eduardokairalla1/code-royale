@@ -123,6 +123,13 @@ describe('logging', () => {
     await logs.find('room_created', ids);
     await logs.find('socket_connected', ids);
 
+    await client.emit('game:start');
+
+    expect(await logs.find('round_started', ids)).toMatchObject({
+      challenge_id: expect.any(String),
+      players: 1,
+    });
+
     await client.emit('room:leave');
 
     await logs.find('command', { ...ids, command: 'room:leave' });
@@ -131,7 +138,7 @@ describe('logging', () => {
 
     expect(await logs.find('socket', ids)).toMatchObject({
       closed_by: 'leave',
-      commands: 1,
+      commands: 2,
       duration_ms: expect.any(Number),
     });
 
