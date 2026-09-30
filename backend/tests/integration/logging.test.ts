@@ -101,9 +101,6 @@ describe('logging', () => {
     const { server, logs } = await startLogged();
 
     const host = await createRoom(server, 'Host');
-    await request(server, 'POST', `/api/rooms/${host.code}/join`, {
-      name: 'Guest',
-    });
     const client = await TestClient.join(server, host);
     const ids = { room_code: host.code, player_id: host.playerId };
 
@@ -124,14 +121,13 @@ describe('logging', () => {
     });
 
     await logs.find('room_created', ids);
-    expect(await logs.find('player_joined', { room_code: host.code }))
-      .toMatchObject({ players: 2, status: 'LOBBY' });
     await logs.find('socket_connected', ids);
 
     await client.emit('room:leave');
 
     await logs.find('command', { ...ids, command: 'room:leave' });
     await logs.find('player_left', { ...ids, reason: 'leave' });
+    await logs.find('room_deleted', { room_code: host.code, reason: 'empty' });
 
     expect(await logs.find('socket', ids)).toMatchObject({
       closed_by: 'leave',

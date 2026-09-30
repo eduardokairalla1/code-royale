@@ -27,6 +27,7 @@ export const Event = {
   RoomCreated: 'room_created',
   PlayerJoined: 'player_joined',
   PlayerLeft: 'player_left',
+  RoomDeleted: 'room_deleted',
 } as const;
 
 // --- CODE ---

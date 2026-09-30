@@ -26,6 +26,9 @@ const MAX_ROOM_CODE_ATTEMPTS = 10;
 // why a player left: on their own
 type LeaveReason = 'leave';
 
+// why a room was dropped: its last player left
+type DeleteReason = 'empty';
+
 // --- CODE ---
 /**
  * A room together with the player that just entered it.
@@ -297,7 +300,7 @@ export class RoomService {
   }
 
   /**
-   * Remove a player from a room.
+   * Remove a player, dropping the room once it is empty.
    *
    * @param {string} code The room code.
    * @param {string} playerId The player's id.
@@ -327,7 +330,32 @@ export class RoomService {
       players: room.players.size,
     });
 
+    // last player gone: drop the room
+    if (room.players.size === 0) {
+      await this.deleteRoom(room, 'empty');
+      return;
+    }
+
     await this.update(room);
+  }
+
+  /**
+   * Delete a room.
+   *
+   * @param {Room} room The room to delete.
+   * @param {DeleteReason} reason Why it goes.
+   *
+   * @returns {Promise<void>}
+   */
+  private async deleteRoom(room: Room, reason: DeleteReason): Promise<void> {
+
+    await this.store.delete(room.code);
+
+    log(this.options.logger, 'info', Event.RoomDeleted, {
+      room_code: room.code,
+      reason,
+      age_ms: Date.now() - room.createdAt,
+    });
   }
 
   /**
