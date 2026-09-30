@@ -1,0 +1,21 @@
+{
+  "id": "to-binary",
+  "title": "Decimal to binary",
+  "description": "Read a non-negative integer N and print it in binary, without leading zeros.\n\nConstraints: 0 ≤ N ≤ 10^9",
+  "difficulty": "easy",
+  "timeLimitSeconds": 300,
+  "examples": [
+    { "input": "5", "output": "101" },
+    { "input": "8", "output": "1000" }
+  ],
+  "tests": [
+    { "input": "0", "output": "0" },
+    { "input": "1", "output": "1" },
+    { "input": "2", "output": "10" },
+    { "input": "255", "output": "11111111" },
+    { "input": "256", "output": "100000000" },
+    { "input": "1000000000", "output": "111011100110101100101000000000" },
+    { "input": "1023", "output": "1111111111" },
+    { "input": "682", "output": "1010101010" }
+  ]
+}

@@ -39,6 +39,10 @@ function directoryWith(files: Record<string, unknown>): URL {
 
 describe('ChallengeService.load', () => {
 
+  it('loads the real catalog shipped with the backend', () => {
+    expect(() => ChallengeService.load()).not.toThrow();
+  });
+
   it('refuses an invalid file, naming it', () => {
     const directory = directoryWith({ 'broken.json': { id: 'broken' } });
 

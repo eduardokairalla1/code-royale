@@ -1,0 +1,25 @@
+{
+  "id": "roman-to-integer",
+  "title": "Roman numerals",
+  "description": "Read a valid Roman numeral and print its value. The symbols are I = 1, V = 5, X = 10, L = 50, C = 100, D = 500 and M = 1000. A smaller symbol before a larger one is subtracted, as in IV = 4 and CM = 900.\n\nConstraints: the value is between 1 and 3999",
+  "difficulty": "medium",
+  "timeLimitSeconds": 600,
+  "examples": [
+    { "input": "XIV", "output": "14" },
+    { "input": "MCMXCIV", "output": "1994" }
+  ],
+  "tests": [
+    { "input": "I", "output": "1" },
+    { "input": "IV", "output": "4" },
+    { "input": "IX", "output": "9" },
+    { "input": "XL", "output": "40" },
+    { "input": "XC", "output": "90" },
+    { "input": "CD", "output": "400" },
+    { "input": "CM", "output": "900" },
+    { "input": "LVIII", "output": "58" },
+    { "input": "MMMCMXCIX", "output": "3999" },
+    { "input": "MMXXVI", "output": "2026" },
+    { "input": "DCCCXLVIII", "output": "848" },
+    { "input": "CDXLIV", "output": "444" }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "coin-change",
+  "title": "Coin change",
+  "description": "The first line has N and a value V. The second line has the N coin values. Using as many coins of each value as you want, print the smallest number of coins that add up to exactly V, or -1 if it is not possible.\n\nConstraints: 1 ≤ N ≤ 100, 1 ≤ each coin ≤ 10^4, 0 ≤ V ≤ 10^4",
+  "difficulty": "hard",
+  "timeLimitSeconds": 900,
+  "examples": [
+    { "input": "3 11\n1 2 5", "output": "3" },
+    { "input": "1 3\n2", "output": "-1" }
+  ],
+  "tests": [
+    { "input": "1 0\n7", "output": "0" },
+    { "input": "3 6\n1 3 4", "output": "2" },
+    { "input": "2 7\n2 4", "output": "-1" },
+    { "input": "3 30\n1 10 25", "output": "3" },
+    { "input": "1 10000\n1", "output": "10000" },
+    { "input": "2 9999\n2 10000", "output": "-1" },
+    { "input": "4 63\n1 5 10 21", "output": "3" },
+    { "input": "100 10000\n2791 4522 6288 1788 7140 7003 1749 2846 634 9116 3802 5495 5471 384 8674 7907 8059 628 9916 6528 9356 550 282 8263 3097 5077 5853 4925 7051 5747 2482 8124 2118 9911 177 1800 8023 8997 5881 5270 559 5271 8344 6585 4050 5418 8904 7197 6687 9702 6135 570 3583 3147 3682 6584 3203 7987 9828 7556 2542 317 8548 4802 1677 2053 7664 7294 1271 6601 378 8797 4074 2637 338 3359 6234 9580 5974 6409 1476 9695 5950 8418 2276 1439 4496 4637 9196 5739 431 9682 9136 5164 3024 4963 1212 4152 3245 2683", "output": "2" },
+    { "input": "5 9973\n6 10 15 97 1001", "output": "25" }
+  ]
+}
