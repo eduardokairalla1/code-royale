@@ -1,5 +1,5 @@
 /**
- * Submission rules: example runs and drafts.
+ * Submission rules: example runs, drafts and the judged submission.
  */
 
 // --- IMPORTS ---
@@ -13,13 +13,16 @@ import type { PlayerResult } from '../game/game.types.js';
 import type { Round } from '../game/game.types.js';
 import type { RoomService } from '../room/room.service.js';
 import type { Room } from '../room/room.types.js';
+import { AlreadySubmittedError } from './submission.errors.js';
 import { NotInRoundError } from './submission.errors.js';
 import { RoundNotRunningError } from './submission.errors.js';
 import { RunInProgressError } from './submission.errors.js';
 import type { ExampleResult } from './submission.types.js';
 import type { TestStatus } from './submission.types.js';
+import type { Verdict } from './submission.types.js';
 import { countStatuses } from './submission.utils.js';
 import { judgeRun } from './submission.utils.js';
+import { toVerdict } from './submission.utils.js';
 import type { FastifyBaseLogger } from 'fastify';
 
 // --- CODE ---
@@ -45,7 +48,7 @@ export class SubmissionService {
    *
    * @param {RoomService} roomService The room rules.
    * @param {CodeExecutor} executor Runs the code in a sandbox.
-   * @param {FastifyBaseLogger} logger Where runs are logged.
+   * @param {FastifyBaseLogger} logger Where runs and verdicts are logged.
    */
   constructor(
     private readonly roomService: RoomService,
@@ -138,6 +141,110 @@ export class SubmissionService {
 
     // no broadcast: drafts are private and change on every keystroke
     await this.roomService.save(room);
+  }
+
+  /**
+   * Judge the one submission of a player against the hidden tests.
+   *
+   * @param {string} code The room code.
+   * @param {string} playerId Who is submitting.
+   * @param {Draft} draft The language and the code.
+   *
+   * @returns {Promise<Verdict>} How many hidden tests passed.
+   *
+   * @throws {RoundNotRunningError} When no round is running.
+   * @throws {NotInRoundError} When the player is not in the round.
+   * @throws {AlreadySubmittedError} When the player already submitted.
+   * @throws {ExecutorUnavailableError} When the sandbox is down; the
+   *                                    submission is then undone.
+   */
+  async submit(code: string, playerId: string, draft: Draft): Promise<Verdict> {
+
+    const { room, round, result } = await this.getActiveRound(
+      code,
+      playerId,
+    );
+
+    // one submission per round
+    if (result.submittedAt !== null) {
+      throw new AlreadySubmittedError({ code, playerId });
+    }
+
+    // lock it right away: everyone sees it as submitted, being judged
+    result.submittedAt = Date.now();
+    round.drafts.set(playerId, draft);
+
+    await this.roomService.update(room);
+
+    try {
+      return await this.judge(room.code, playerId, draft, false);
+
+    // could not judge: undo, so the player can submit again
+    } catch (error) {
+      result.submittedAt = null;
+      await this.roomService.update(room);
+
+      throw error;
+    }
+  }
+
+  /**
+   * Run the hidden tests and record how many passed.
+   *
+   * @param {string} code The room code.
+   * @param {string} playerId Whose submission it is.
+   * @param {Draft} draft The language and the code.
+   * @param {boolean} auto Whether time ran out and it was sent for them.
+   *
+   * @returns {Promise<Verdict>} The verdict.
+   *
+   * @throws {ExecutorUnavailableError} When the sandbox is down.
+   */
+  private async judge(
+    code: string,
+    playerId: string,
+    draft: Draft,
+    auto: boolean,
+  ): Promise<Verdict> {
+
+    const event = this.runEvent(code, playerId, draft).set({ auto });
+
+    try {
+      const room = await this.roomService.getOrThrow(code);
+      const tests = room.round?.challenge.tests ?? [];
+
+      const results = await this.runCases(draft, tests, event);
+      const statuses = tests.map((test, index) => {
+        return judgeRun(results[index] as ExecutionResult, test.output);
+      });
+
+      const verdict = toVerdict(results, statuses);
+
+      this.setStatuses(event, statuses);
+      event.set({ verdict: verdict.status });
+
+      // the player may have left while it ran
+      const current = await this.roomService.find(code);
+      const result = current?.round?.results.get(playerId);
+
+      if (current && result) {
+        result.passed = verdict.passed;
+        result.total = verdict.total;
+
+        await this.roomService.update(current);
+      }
+
+      event.set({ recorded: Boolean(current && result) });
+
+      return verdict;
+
+    } catch (error) {
+      event.fail(error);
+      throw error;
+
+    } finally {
+      event.emit(this.logger, Event.SubmissionJudged);
+    }
   }
 
   /**

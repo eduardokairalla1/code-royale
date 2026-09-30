@@ -142,6 +142,20 @@ describe('logging', () => {
       executor_ms: expect.any(Number),
     });
 
+    await client.emit('submission:submit', {
+      language: 'python',
+      code: PROGRAMS.sum,
+    });
+
+    expect(await logs.find('submission_judged', ids)).toMatchObject({
+      auto: false,
+      passed: 4,
+      total: 4,
+      verdict: 'ACCEPTED',
+      statuses: { OK: 4 },
+      recorded: true,
+    });
+
     await client.emit('room:leave');
 
     await logs.find('command', { ...ids, command: 'room:leave' });
@@ -150,7 +164,7 @@ describe('logging', () => {
 
     expect(await logs.find('socket', ids)).toMatchObject({
       closed_by: 'leave',
-      commands: 3,
+      commands: 4,
       duration_ms: expect.any(Number),
     });
 

@@ -1,8 +1,9 @@
 /**
- * Running the code against the examples.
+ * Running the code against the examples and submitting it.
  */
 
 // --- IMPORTS ---
+import type { PublicRoom } from '../../src/modules/room/room.types.js';
 import { PROGRAMS } from '../helpers/fake-executor.js';
 import { createRoom } from '../helpers/test-server.js';
 import { joinRoom } from '../helpers/test-server.js';
@@ -41,6 +42,26 @@ async function roundWith(names: string[]) {
   await hostClient.waitFor((room) => room.status === 'PLAYING');
 
   return { server, host, clients };
+}
+
+/**
+ * Summarize the ranking, e.g. "1:Ana:100 -:Bob:-".
+ *
+ * @param {PublicRoom} room The room, with a round.
+ *
+ * @returns {string} position:name:percentage per player, ranked.
+ */
+function ranking(room: PublicRoom): string {
+
+  const nameOf = (id: string) => room.players.find((p) => p.id === id)?.name;
+
+  return (room.round?.results ?? [])
+    .map((r) => {
+      const auto = r.autoSubmitted ? '(auto)' : '';
+      return `${r.position ?? '-'}:${nameOf(r.playerId)}`
+        + `:${r.percentage ?? '-'}${auto}`;
+    })
+    .join(' ');
 }
 
 /**
@@ -123,5 +144,84 @@ describe('running the examples', () => {
     );
 
     expect(response.error).toBe('not_in_round_error');
+  });
+});
+
+describe('submitting', () => {
+
+  it('judges the hidden tests and allows only one submission', async () => {
+    const { clients: [ana, bob] } = await roundWith(['Ana', 'Bob']);
+
+    const verdict = await ana!.emit(
+      'submission:submit',
+      program(PROGRAMS.sum),
+    );
+
+    expect(verdict).toEqual({
+      ok: true,
+      data: {
+        status: 'ACCEPTED',
+        passed: 4,
+        total: 4,
+        percentage: 100,
+        compileError: null,
+      },
+    });
+
+    const again = await ana!.emit('submission:submit', program(PROGRAMS.sum));
+    expect(again.error).toBe('already_submitted_error');
+
+    // bob has not submitted: the round goes on
+    expect(bob!.state?.status).toBe('PLAYING');
+  });
+
+  it('reports a partial score and the first failure', async () => {
+    const { clients: [ana, bob] } = await roundWith(['Ana', 'Bob']);
+
+    const verdict = await ana!.emit('submission:submit', program('print:7'));
+
+    expect(verdict.data).toMatchObject({
+      status: 'WRONG_ANSWER',
+      passed: 1,
+      total: 4,
+      percentage: 25,
+    });
+
+    await bob!.waitFor((room) => ranking(room) === '1:Ana:25 -:Bob:-');
+  });
+
+  it('shows the compiler output on a compile error', async () => {
+    const { clients: [ana] } = await roundWith(['Ana']);
+
+    const verdict = await ana!.emit(
+      'submission:submit',
+      program(PROGRAMS.compileError),
+    );
+
+    expect(verdict.data).toMatchObject({
+      status: 'COMPILE_ERROR',
+      passed: 0,
+      compileError: 'syntax error',
+    });
+  });
+
+  it('undoes the submission when the sandbox is down', async () => {
+    const { clients: [ana] } = await roundWith(['Ana']);
+
+    const failed = await ana!.emit(
+      'submission:submit',
+      program(PROGRAMS.unavailable),
+    );
+
+    expect(failed.error).toBe('executor_unavailable_error');
+
+    // still playing, and free to submit again
+    const room = await ana!.waitFor((r) => {
+      return r.round?.results[0]?.submittedAt === null;
+    });
+    expect(room.status).toBe('PLAYING');
+
+    const retry = await ana!.emit('submission:submit', program(PROGRAMS.sum));
+    expect(retry.data.status).toBe('ACCEPTED');
   });
 });

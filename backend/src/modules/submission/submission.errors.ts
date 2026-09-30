@@ -25,6 +25,15 @@ export class NotInRoundError extends AppError {
 }
 
 /**
+ * Raised on a second submission: each player submits once per round.
+ */
+export class AlreadySubmittedError extends AppError {
+  static override readonly MESSAGE = 'You have already submitted!';
+  static override readonly STATUS_CODE = 409;
+  static override readonly LOG_LEVEL = 'warn';
+}
+
+/**
  * Raised when running the examples while the previous run is not done.
  */
 export class RunInProgressError extends AppError {

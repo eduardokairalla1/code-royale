@@ -42,6 +42,7 @@ export interface ClientToServerEvents {
   'game:restart': (ack?: CommandAck) => void;
   'submission:run': (payload: unknown, ack?: CommandAck) => void;
   'submission:draft': (payload: unknown, ack?: CommandAck) => void;
+  'submission:submit': (payload: unknown, ack?: CommandAck) => void;
 }
 
 /**
