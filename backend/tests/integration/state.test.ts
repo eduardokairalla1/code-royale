@@ -39,12 +39,15 @@ function quietLogger(): FastifyBaseLogger {
 /**
  * A scheduler on the test's keys, polling fast.
  *
+ * @param {number} leaseMs How long a claimed task may run.
+ *
  * @returns {Scheduler} The running scheduler.
  */
-function startScheduler(): Scheduler {
+function startScheduler(leaseMs = 60_000): Scheduler {
 
   const scheduler = new Scheduler(redis, {
     pollMs: 10,
+    leaseMs,
     logger: quietLogger(),
   });
 
@@ -98,6 +101,27 @@ describe('scheduler', () => {
     await sleep(150);
 
     expect(ran.mock.calls).toEqual([['kept']]);
+  });
+
+  it('runs a task again once a dead instance lets its lease go', async () => {
+    const one = startScheduler(100);
+
+    // the first instance claims it and never finishes
+    one.handle('ping', () => new Promise(() => {}));
+    one.run();
+    await one.start('ping', 'a', 0);
+    await sleep(50);
+    schedulers.splice(schedulers.indexOf(one), 1);
+    void one.stop();
+
+    const ran = vi.fn(async (_key: string) => {});
+    const two = startScheduler(100);
+
+    two.handle('ping', ran);
+    two.run();
+    await sleep(250);
+
+    expect(ran.mock.calls).toEqual([['a']]);
   });
 });
 
