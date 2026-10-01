@@ -7,7 +7,7 @@ import { generateRoomCode } from '../../shared/ids.js';
 import { tokensMatch } from '../../shared/ids.js';
 import { Event } from '../../shared/logging/events.js';
 import { log } from '../../shared/logging/events.js';
-import { TimerRegistry } from '../../shared/timers.js';
+import type { Scheduler } from '../../shared/scheduler.js';
 import { InvalidPlayerTokenError } from './room.errors.js';
 import { NotHostError } from './room.errors.js';
 import { RoomCodeGenerationError } from './room.errors.js';
@@ -25,6 +25,10 @@ import type { FastifyBaseLogger } from 'fastify';
 
 // --- GLOBALS ---
 const MAX_ROOM_CODE_ATTEMPTS = 10;
+
+// scheduled tasks: a room with nobody connected, a player who dropped
+const ROOM_TTL_TASK = 'room_ttl';
+const PLAYER_GRACE_TASK = 'player_grace';
 
 // why a player left: on their own, or never came back in time
 type LeaveReason = 'leave' | 'grace_expired';
@@ -66,22 +70,24 @@ export type RoomChangeListener = (room: Room) => void;
 export class RoomService {
   private readonly listeners: RoomChangeListener[] = [];
 
-  // pending removals, by player id and by room code
-  private readonly playerTimers: TimerRegistry;
-  private readonly roomTimers: TimerRegistry;
-
   /**
    * Create the service.
    *
    * @param {RoomStore} store Where rooms are kept.
+   * @param {Scheduler} scheduler Runs the delayed removals.
    * @param {RoomServiceOptions} options Settings and dependencies.
    */
   constructor(
     private readonly store: RoomStore,
+    private readonly scheduler: Scheduler,
     private readonly options: RoomServiceOptions,
   ) {
-    this.playerTimers = new TimerRegistry(options.logger, 'player_grace');
-    this.roomTimers = new TimerRegistry(options.logger, 'room_ttl');
+    scheduler.handle(ROOM_TTL_TASK, (code) => this.expireRoom(code));
+
+    scheduler.handle(PLAYER_GRACE_TASK, (key) => {
+      const [code, playerId] = splitGraceKey(key);
+      return this.removePlayer(code, playerId, 'grace_expired');
+    });
   }
 
   /**
@@ -244,7 +250,7 @@ export class RoomService {
 
     await this.store.save(room);
 
-    this.scheduleCleanup(room);
+    await this.scheduleCleanup(room);
     this.notify(room);
   }
 
@@ -370,7 +376,7 @@ export class RoomService {
       return;
     }
 
-    this.playerTimers.clear(playerId);
+    await this.scheduler.clear(PLAYER_GRACE_TASK, graceKey(code, playerId));
     room.players.delete(playerId);
     room.round?.results.delete(playerId);
 
@@ -435,7 +441,7 @@ export class RoomService {
   }
 
   /**
-   * Delete a room and cancel all of its pending timers.
+   * Delete a room and cancel all of its pending tasks.
    *
    * @param {Room} room The room to delete.
    * @param {DeleteReason} reason Why it goes.
@@ -444,11 +450,15 @@ export class RoomService {
    */
   private async deleteRoom(room: Room, reason: DeleteReason): Promise<void> {
 
-    for (const playerId of room.players.keys()) {
-      this.playerTimers.clear(playerId);
-    }
-
-    this.roomTimers.clear(room.code);
+    await Promise.all([
+      ...[...room.players.keys()].map((playerId) => {
+        return this.scheduler.clear(
+          PLAYER_GRACE_TASK,
+          graceKey(room.code, playerId),
+        );
+      }),
+      this.scheduler.clear(ROOM_TTL_TASK, room.code),
+    ]);
 
     await this.store.delete(room.code);
 
@@ -465,44 +475,50 @@ export class RoomService {
    *
    * @param {Room} room The room that just changed.
    *
-   * @returns {void}
+   * @returns {Promise<void>}
    */
-  private scheduleCleanup(room: Room): void {
+  private async scheduleCleanup(room: Room): Promise<void> {
 
     const players = [...room.players.values()];
 
     // nobody connected: players wait together with the room
     if (!hasConnectedPlayers(room)) {
-      for (const player of players) {
-        this.playerTimers.clear(player.id);
-      }
-
-      this.roomTimers.start(
-        room.code,
-        this.options.emptyRoomTtlMs,
-        () => this.expireRoom(room.code),
-      );
+      await Promise.all([
+        ...players.map((player) => {
+          return this.scheduler.clear(
+            PLAYER_GRACE_TASK,
+            graceKey(room.code, player.id),
+          );
+        }),
+        this.scheduler.start(
+          ROOM_TTL_TASK,
+          room.code,
+          this.options.emptyRoomTtlMs,
+        ),
+      ]);
 
       return;
     }
 
     // someone connected: the room stays
-    this.roomTimers.clear(room.code);
+    await Promise.all([
+      this.scheduler.clear(ROOM_TTL_TASK, room.code),
 
-    for (const player of players) {
+      ...players.map((player) => {
+        const key = graceKey(room.code, player.id);
 
-      // connected, or mid game: nobody to remove
-      if (player.socketId !== null || room.status === 'PLAYING') {
-        this.playerTimers.clear(player.id);
-        continue;
-      }
+        // connected, or mid game: nobody to remove
+        if (player.socketId !== null || room.status === 'PLAYING') {
+          return this.scheduler.clear(PLAYER_GRACE_TASK, key);
+        }
 
-      this.playerTimers.start(
-        player.id,
-        this.options.reconnectGraceMs,
-        () => this.removePlayer(room.code, player.id, 'grace_expired'),
-      );
-    }
+        return this.scheduler.start(
+          PLAYER_GRACE_TASK,
+          key,
+          this.options.reconnectGraceMs,
+        );
+      }),
+    ]);
   }
 
   /**
@@ -538,4 +554,30 @@ export class RoomService {
       attempts: MAX_ROOM_CODE_ATTEMPTS,
     });
   }
+}
+
+/**
+ * The key of a player's grace period.
+ *
+ * @param {string} code The room code.
+ * @param {string} playerId The player's id.
+ *
+ * @returns {string} The key, "code:playerId".
+ */
+function graceKey(code: string, playerId: string): string {
+  return `${code}:${playerId}`;
+}
+
+/**
+ * Split the key of a player's grace period.
+ *
+ * @param {string} key The key, "code:playerId".
+ *
+ * @returns {[string, string]} The room code and the player id.
+ */
+function splitGraceKey(key: string): [string, string] {
+
+  const at = key.indexOf(':');
+
+  return [key.slice(0, at), key.slice(at + 1)];
 }

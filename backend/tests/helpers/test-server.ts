@@ -30,6 +30,7 @@ export const TEST_TIMINGS = {
   reconnectGraceMs: 300,
   // fixture challenges last 2 seconds
   roundMs: 2000,
+  schedulerPollMs: 20,
 };
 
 // every server of a test shares its keys, as instances of one deployment
@@ -80,6 +81,7 @@ export async function startServer(
     challengeService: ChallengeService.load(FIXTURES),
     emptyRoomTtlMs: TEST_TIMINGS.emptyRoomTtlMs,
     reconnectGraceMs: TEST_TIMINGS.reconnectGraceMs,
+    schedulerPollMs: TEST_TIMINGS.schedulerPollMs,
     redisKeyPrefix: keyPrefix,
     ...options,
   });

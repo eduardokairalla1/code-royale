@@ -28,12 +28,20 @@ import { logStarted } from './shared/logging/lifecycle.js';
 import { loggerOptions } from './shared/logging/logger.js';
 import { registerRequestLog } from './shared/logging/request-log.js';
 import { RedisConnections } from './shared/redis/redis.js';
+import { Scheduler } from './shared/scheduler.js';
 import { API_PREFIX } from './socket.js';
 import { createSocketServer } from './socket.js';
 import cors from '@fastify/cors';
 import Fastify from 'fastify';
 import { LogController } from 'fastify';
 import type { FastifyInstance } from 'fastify';
+
+// --- GLOBALS ---
+// how often each instance looks for due timers
+const SCHEDULER_POLL_MS = 250;
+
+// how long a timer may run before another instance runs it again
+const SCHEDULER_LEASE_MS = 5 * 60 * 1000;
 
 // --- CODE ---
 /**
@@ -52,6 +60,7 @@ export interface AppOptions {
   lspSecret?: string;
   redisUrl?: string;
   redisKeyPrefix?: string;
+  schedulerPollMs?: number;
   logger?: boolean;
   logStream?: { write(line: string): void };
 }
@@ -85,14 +94,25 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
     logger: app.log,
   });
 
-  // wire the services
-  const roomService = new RoomService(new MemoryRoomStore(), {
-    emptyRoomTtlMs: options.emptyRoomTtlMs ?? config.emptyRoomTtlMs,
-    reconnectGraceMs: options.reconnectGraceMs ?? config.reconnectGraceMs,
-    maxPlayersPerRoom: options.maxPlayersPerRoom ?? config.maxPlayersPerRoom,
-    maxRooms: options.maxRooms ?? config.maxRooms,
+  const scheduler = new Scheduler(redis.client, {
+    pollMs: options.schedulerPollMs ?? SCHEDULER_POLL_MS,
+    leaseMs: SCHEDULER_LEASE_MS,
     logger: app.log,
   });
+
+  // wire the services
+  const roomService = new RoomService(
+    new MemoryRoomStore(),
+    scheduler,
+    {
+      emptyRoomTtlMs: options.emptyRoomTtlMs ?? config.emptyRoomTtlMs,
+      reconnectGraceMs: options.reconnectGraceMs ?? config.reconnectGraceMs,
+      maxPlayersPerRoom:
+        options.maxPlayersPerRoom ?? config.maxPlayersPerRoom,
+      maxRooms: options.maxRooms ?? config.maxRooms,
+      logger: app.log,
+    },
+  );
 
   const submissionService = new SubmissionService(
     roomService,
@@ -110,6 +130,7 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
     roomService,
     challengeService,
     submissionService,
+    scheduler,
     app.log,
   );
 
@@ -171,13 +192,15 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
   });
   registerLspSocket(io, lspService, app.log, enabledLanguages);
 
-  // connect before serving
+  // connect before serving, then look for due timers
   app.addHook('onReady', async () => {
     await redis.connect();
+    scheduler.run();
   });
 
-  // let the disconnects being saved land before redis goes away
+  // let running timers and disconnects land before redis goes away
   app.addHook('onClose', async () => {
+    await scheduler.stop();
     await roomSocket.drain();
     await redis.close();
   });

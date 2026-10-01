@@ -6,7 +6,7 @@
 import { describeError } from '../../shared/logging/error-fields.js';
 import { Event } from '../../shared/logging/events.js';
 import { log } from '../../shared/logging/events.js';
-import { TimerRegistry } from '../../shared/timers.js';
+import type { Scheduler } from '../../shared/scheduler.js';
 import type { ChallengeService } from '../challenge/challenge.service.js';
 import type { RoomService } from '../room/room.service.js';
 import type { SubmissionService } from '../submission/submission.service.js';
@@ -18,6 +18,9 @@ import { roundSummary } from './game.utils.js';
 import type { FastifyBaseLogger } from 'fastify';
 
 // --- GLOBALS ---
+// the scheduled end of a round
+const ROUND_CLOCK_TASK = 'round_clock';
+
 // why a round ended: the clock, or nobody left to judge
 type FinishReason = 'time_up' | 'everyone_judged';
 
@@ -26,7 +29,6 @@ type FinishReason = 'time_up' | 'everyone_judged';
  * Round lifecycle of a room: LOBBY -> PLAYING -> FINISHED -> LOBBY.
  */
 export class GameService {
-  private readonly roundTimers: TimerRegistry;
 
   // rooms whose round is being closed, so it only happens once
   private readonly finishing = new Set<string>();
@@ -37,15 +39,17 @@ export class GameService {
    * @param {RoomService} roomService The room rules.
    * @param {ChallengeService} challengeService The challenge catalog.
    * @param {SubmissionService} submissionService Judges the submissions.
+   * @param {Scheduler} scheduler Ends rounds on time.
    * @param {FastifyBaseLogger} logger Where failures are logged.
    */
   constructor(
     private readonly roomService: RoomService,
     private readonly challengeService: ChallengeService,
     private readonly submissionService: SubmissionService,
+    private readonly scheduler: Scheduler,
     private readonly logger: FastifyBaseLogger,
   ) {
-    this.roundTimers = new TimerRegistry(logger, 'round_clock');
+    scheduler.handle(ROUND_CLOCK_TASK, (code) => this.finish(code, 'time_up'));
 
     // everyone submitted and got judged: no reason to wait for the clock
     this.roomService.onRoomChanged((room) => {
@@ -101,11 +105,11 @@ export class GameService {
       time_limit_s: challenge.timeLimitSeconds,
     });
 
-    // end the round when the clock runs out
-    this.roundTimers.start(
+    // end the round when the clock runs out, on whichever instance is up
+    await this.scheduler.start(
+      ROUND_CLOCK_TASK,
       room.code,
       room.round.endsAt - Date.now(),
-      () => this.finish(room.code, 'time_up'),
     );
   }
 
@@ -158,7 +162,7 @@ export class GameService {
     this.finishing.add(code);
 
     try {
-      this.roundTimers.clear(code);
+      await this.scheduler.clear(ROUND_CLOCK_TASK, code);
 
       // time is up for everyone: submit what they have
       await this.submissionService.submitDrafts(code);
