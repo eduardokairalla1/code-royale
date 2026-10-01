@@ -17,6 +17,7 @@ import { MemoryRoomStore } from './modules/room/memory-room.store.js';
 import { roomRoutes } from './modules/room/room.routes.js';
 import { RoomService } from './modules/room/room.service.js';
 import { registerRoomSocket } from './modules/room/room.socket.js';
+import { DraftStore } from './modules/submission/draft.store.js';
 import { SubmissionService } from './modules/submission/submission.service.js';
 import {
   registerSubmissionSocket,
@@ -95,6 +96,7 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
 
   const submissionService = new SubmissionService(
     roomService,
+    new DraftStore(redis.client),
     options.executor
       ?? new PistonExecutor(config.pistonUrl, config.pistonTimeoutMs),
     app.log,
