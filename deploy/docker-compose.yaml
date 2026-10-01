@@ -29,6 +29,9 @@ x-backend-env: &backend-env
   # editor language servers: signs the tickets the lsp service checks
   LSP_SECRET: ${LSP_SECRET:?set LSP_SECRET in deploy/.env}
 
+  # rooms, rounds, timers and broadcasts, shared by every instance
+  REDIS_URL: redis://redis:6379
+
 # --- lsp environment ---
 x-lsp-env: &lsp-env
 
@@ -116,11 +119,14 @@ services:
     depends_on:
       piston:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     ports:
       - "3000:3000"
     networks:
       - edge
       - internal
+      - state
 
   lsp:
     build:

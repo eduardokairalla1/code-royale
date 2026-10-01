@@ -9,7 +9,7 @@ Stack: Node 24, TypeScript, Fastify, Socket.IO, Zod, Vitest.
 ## Running it
 
 ```bash
-# Piston on 127.0.0.1:2000, see ../deploy/README.md
+# Piston on 127.0.0.1:2000 and Redis on 127.0.0.1:6379, see ../deploy/README.md
 cd ../deploy && docker compose -f docker-compose.yaml -f docker-compose-dev.yaml up -d
 
 cd ../backend
@@ -33,10 +33,12 @@ against a real Piston.
 
 ## Settings
 
-All optional, read from the env or `.env`.
+Read from the env or `.env`. Only `REDIS_URL` is required.
 
 | Env var | Default | What it does |
 |---|---|---|
+| `REDIS_URL` | required | rooms, rounds and timers, e.g. `redis://localhost:6379` |
+| `REDIS_KEY_PREFIX` | `code-royale:` | put before every key and channel |
 | `PORT` / `HOST` | `3000` / `0.0.0.0` | where it listens |
 | `CORS_ORIGIN` | `http://localhost:5173` | frontend origins, comma separated |
 | `PISTON_URL` | `http://localhost:2000` | the code runner |
