@@ -143,9 +143,15 @@ export class SubmissionService {
 
     const room = await this.roomService.find(code);
     const round = room?.round;
+    const result = round?.results.get(playerId);
 
     // nothing to keep it for
-    if (!room || room.status !== 'PLAYING' || !round?.results.has(playerId)) {
+    if (!room || room.status !== 'PLAYING' || !round || !result) {
+      return;
+    }
+
+    // already submitted: a late draft must not replace the judged code
+    if (result.submittedAt !== null) {
       return;
     }
 
