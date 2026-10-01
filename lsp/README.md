@@ -12,8 +12,8 @@ Stack: Go, with the official language server of each language in the Docker imag
    works once.
 2. The editor connects to `/lsp/ws?ticket=...`. The service checks the
    ticket and the session limits without calling the backend. Spent
-   tickets are kept in Redis, so a ticket works once across every
-   instance.
+   tickets and each player's sessions are kept in Redis, so this holds
+   across every instance.
 3. The service creates a fresh folder with what the language needs (e.g.
    `go.mod`) and starts the server there, with a clean env.
 4. The session ends when the player leaves, the round ends or nobody types
@@ -79,8 +79,8 @@ The backend needs the same `LSP_SECRET`, and the frontend
 | `REDIS_KEY_PREFIX` | `code-royale:` | put before every key |
 | `PORT` / `HOST` | `3001` / `0.0.0.0` | where it listens |
 | `CORS_ORIGIN` | `http://localhost:5173` | origins browsers connect from |
-| `MAX_SESSIONS` | `16` | servers at once; each takes 100 to 700 MB |
-| `MAX_SESSIONS_PER_PLAYER` | `2` | servers per player |
+| `MAX_SESSIONS` | `16` | servers at once on this instance; each takes 100 to 700 MB |
+| `MAX_SESSIONS_PER_PLAYER` | `2` | servers per player, across every instance |
 | `IDLE_TIMEOUT_SECONDS` | `600` | ends sessions nobody types in |
 | `SESSION_UID_BASE` | `20000` | first uid sessions run as, when root |
 | `ENABLED_LANGUAGES` | all | language ids |
@@ -133,6 +133,8 @@ internal/
 │   └── env.go           # reading and validating env vars
 ├── ticket/ticket.go     # ticket verification
 ├── ledger/              # spent tickets: the interface, and in Redis
+├── leases/              # sessions per player, renewed while they run
+├── redisclient/         # the connection to Redis, checked on boot
 ├── redistest/           # a Redis of their own keys, for tests
 ├── languages/
 │   ├── language.go      # what a language is

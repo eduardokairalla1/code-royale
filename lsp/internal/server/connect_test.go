@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"code-royale/lsp/internal/config"
+	"code-royale/lsp/internal/leases"
 	"code-royale/lsp/internal/ledger"
 	"code-royale/lsp/internal/logging"
 	"code-royale/lsp/internal/redistest"
@@ -31,11 +32,14 @@ const secret = "0123456789abcdef0123456789abcdef"
 // --- CODE ---
 
 // shared is the state of a test's instances, on keys of its own.
-func shared(t *testing.T) Shared {
+func shared(t *testing.T, maxPerPlayer int) Shared {
 
 	client, prefix := redistest.Client(t)
 
-	return Shared{Ledger: ledger.NewRedis(client, prefix)}
+	return Shared{
+		Ledger: ledger.NewRedis(client, prefix),
+		Leases: leases.NewRedis(client, prefix, maxPerPlayer),
+	}
 }
 
 // logs collects the service's log lines, safe across goroutines.
@@ -109,7 +113,7 @@ func dial(t *testing.T, raw string) (*websocket.Conn, *logs) {
 	written := &logs{}
 	logger := slog.New(slog.NewJSONHandler(written, nil))
 
-	srv := New(t.Context(), cfg, logger, shared(t))
+	srv := New(t.Context(), cfg, logger, shared(t, cfg.MaxSessionsPerPlayer))
 	httpServer := httptest.NewServer(srv.Handler())
 	t.Cleanup(httpServer.Close)
 
@@ -261,7 +265,7 @@ func TestBadTicketIsLoggedWithoutIdentity(t *testing.T) {
 func TestWaitHoldsShutdownForSessions(t *testing.T) {
 
 	srv := New(t.Context(), config.Config{MaxSessions: 1},
-		slog.New(slog.DiscardHandler), shared(t))
+		slog.New(slog.DiscardHandler), shared(t, 1))
 
 	srv.active.Add(1)
 
@@ -283,7 +287,7 @@ func TestWaitHoldsShutdownForSessions(t *testing.T) {
 func TestHealthSaysNothingButOk(t *testing.T) {
 
 	srv := New(t.Context(), config.Config{MaxSessions: 1},
-		slog.New(slog.DiscardHandler), shared(t))
+		slog.New(slog.DiscardHandler), shared(t, 1))
 
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest("GET", Prefix+"/health", nil)

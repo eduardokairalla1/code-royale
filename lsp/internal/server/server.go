@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"code-royale/lsp/internal/config"
+	"code-royale/lsp/internal/leases"
 	"code-royale/lsp/internal/ledger"
 )
 
@@ -25,6 +26,8 @@ const Prefix = "/lsp"
 type Shared struct {
 	// spent tickets: each opens one session, on any instance
 	Ledger ledger.Ledger
+	// sessions per player, counted across instances
+	Leases leases.Leases
 }
 
 // Server serves the health check and the language server sessions.
@@ -33,6 +36,7 @@ type Server struct {
 	logger  *slog.Logger
 	limiter *limiter
 	ledger  ledger.Ledger
+	leases  leases.Leases
 
 	// sessions run as users of their own
 	isolate bool
@@ -55,8 +59,9 @@ func New(
 	return &Server{
 		cfg:      cfg,
 		logger:   logger,
-		limiter:  newLimiter(cfg.MaxSessions, cfg.MaxSessionsPerPlayer),
+		limiter:  newLimiter(cfg.MaxSessions),
 		ledger:   shared.Ledger,
+		leases:   shared.Leases,
 		isolate:  runtime.GOOS == "linux" && os.Geteuid() == 0,
 		sessions: sessions,
 	}

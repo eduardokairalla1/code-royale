@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"time"
 
+	"code-royale/lsp/internal/leases"
 	"code-royale/lsp/internal/ledger"
 	"code-royale/lsp/internal/logging"
 	"code-royale/lsp/internal/recovery"
@@ -261,7 +262,7 @@ func refusalReason(err error) string {
 		return "round_over"
 	case errors.Is(err, errLanguageUnavailable):
 		return "language_unavailable"
-	case errors.Is(err, errPlayerFull):
+	case errors.Is(err, leases.ErrFull):
 		return "player_busy"
 	case errors.Is(err, errServerFull):
 		return "busy"
