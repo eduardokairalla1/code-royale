@@ -32,6 +32,7 @@ import { Scheduler } from './shared/scheduler.js';
 import { API_PREFIX } from './socket.js';
 import { createSocketServer } from './socket.js';
 import cors from '@fastify/cors';
+import { createAdapter } from '@socket.io/redis-adapter';
 import Fastify from 'fastify';
 import { LogController } from 'fastify';
 import type { FastifyInstance } from 'fastify';
@@ -209,9 +210,14 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
   });
   registerLspSocket(io, lspService, app.log, enabledLanguages);
 
-  // connect before serving, then look for due timers
+  // connect before serving: broadcasts go through redis to every instance
   app.addHook('onReady', async () => {
     await redis.connect();
+
+    io.adapter(createAdapter(redis.publisher, redis.subscriber, {
+      key: `${redisKeyPrefix}socket.io`,
+    }));
+
     scheduler.run();
   });
 
@@ -219,6 +225,7 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
   app.addHook('onClose', async () => {
     await scheduler.stop();
     await roomSocket.drain();
+    await io.of('/').adapter.close();
     await redis.close();
   });
 

@@ -42,6 +42,18 @@ export class FakeExecutor implements CodeExecutor {
   // every request received, in order
   readonly requests: ExecutionRequest[] = [];
 
+  // a sandbox that stopped answering, like one whose instance died
+  private stalled = false;
+
+  /**
+   * Never answer again, whatever the program.
+   *
+   * @returns {void}
+   */
+  stall(): void {
+    this.stalled = true;
+  }
+
   /**
    * Run a fake program once.
    *
@@ -54,6 +66,10 @@ export class FakeExecutor implements CodeExecutor {
   async run(request: ExecutionRequest): Promise<ExecutionResult> {
 
     this.requests.push(request);
+
+    if (this.stalled) {
+      return new Promise(() => {});
+    }
 
     const code = request.code.trim();
 
