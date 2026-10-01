@@ -179,6 +179,11 @@ async function handleConnection(
       io.in(replacedSocketId).disconnectSockets(true);
     }
 
+    // dropped while being bound: its disconnect found nothing to clear
+    if (socket.disconnected) {
+      await track(roomService.disconnect(roomCode, playerId, socket.id));
+    }
+
     log(logger, 'info', Event.SocketConnected, {
       socket_id: socket.id,
       room_code: roomCode,
