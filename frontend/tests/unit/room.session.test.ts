@@ -25,6 +25,7 @@ const RESPONSE: JoinResponse = {
     hostId: 'p1',
     players: [],
     round: null,
+    version: 1,
   },
   player: { id: 'p1', token: 'secret' },
 };
