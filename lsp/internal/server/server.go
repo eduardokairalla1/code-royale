@@ -21,6 +21,12 @@ const Prefix = "/lsp"
 
 // --- CODE ---
 
+// Shared is the state every instance of the service shares.
+type Shared struct {
+	// spent tickets: each opens one session, on any instance
+	Ledger ledger.Ledger
+}
+
 // Server serves the health check and the language server sessions.
 type Server struct {
 	cfg     config.Config
@@ -43,13 +49,14 @@ func New(
 	sessions context.Context,
 	cfg config.Config,
 	logger *slog.Logger,
+	shared Shared,
 ) *Server {
 
 	return &Server{
 		cfg:      cfg,
 		logger:   logger,
 		limiter:  newLimiter(cfg.MaxSessions, cfg.MaxSessionsPerPlayer),
-		ledger:   ledger.NewMemory(),
+		ledger:   shared.Ledger,
 		isolate:  runtime.GOOS == "linux" && os.Geteuid() == 0,
 		sessions: sessions,
 	}

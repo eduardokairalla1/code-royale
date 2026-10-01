@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"code-royale/lsp/internal/config"
+	"code-royale/lsp/internal/ledger"
 	"code-royale/lsp/internal/logging"
 	"code-royale/lsp/internal/redisclient"
 	"code-royale/lsp/internal/server"
@@ -68,7 +69,9 @@ func run() error {
 	sessions, endSessions := context.WithCancel(context.Background())
 	defer endSessions()
 
-	srv := server.New(sessions, cfg, logger)
+	srv := server.New(sessions, cfg, logger, server.Shared{
+		Ledger: ledger.NewRedis(client, cfg.RedisKeyPrefix),
+	})
 
 	httpServer := &http.Server{
 		Addr:              net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port)),

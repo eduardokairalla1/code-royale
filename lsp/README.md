@@ -11,7 +11,9 @@ Stack: Go, with the official language server of each language in the Docker imag
    round get one. It is signed with `LSP_SECRET`, lasts 60 seconds and
    works once.
 2. The editor connects to `/lsp/ws?ticket=...`. The service checks the
-   ticket and the session limits without calling the backend.
+   ticket and the session limits without calling the backend. Spent
+   tickets are kept in Redis, so a ticket works once across every
+   instance.
 3. The service creates a fresh folder with what the language needs (e.g.
    `go.mod`) and starts the server there, with a clean env.
 4. The session ends when the player leaves, the round ends or nobody types
@@ -64,7 +66,7 @@ Or on the host, with Go and whichever servers are on the `PATH`:
 
 ```bash
 LSP_SECRET=$(openssl rand -hex 32) REDIS_URL=redis://localhost:6379 go run .
-go test ./...
+go test ./...            # needs Redis too, on REDIS_URL or localhost:6379
 ```
 
 The backend needs the same `LSP_SECRET`, and the frontend
@@ -130,7 +132,8 @@ internal/
 │   ├── config.go        # the settings and Load
 │   └── env.go           # reading and validating env vars
 ├── ticket/ticket.go     # ticket verification
-├── ledger/              # spent tickets: the interface, and in memory
+├── ledger/              # spent tickets: the interface, and in Redis
+├── redistest/           # a Redis of their own keys, for tests
 ├── languages/
 │   ├── language.go      # what a language is
 │   └── catalog.go       # the languages: command and workspace files
