@@ -44,6 +44,10 @@ export const Event = {
   // language servers
   TicketIssued: 'ticket_issued',
 
+  // redis: lost, and back; the clients reconnect on their own
+  RedisDown: 'redis_down',
+  RedisUp: 'redis_up',
+
   TimerFailed: 'timer_failed',
 } as const;
 
