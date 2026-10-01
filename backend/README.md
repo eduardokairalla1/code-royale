@@ -71,12 +71,13 @@ room by `room_code` and a player by `player_id`.
 | `examples_run` / `submission_judged` | code ran against the examples / the tests | `language`, `statuses`, `executor_ms` |
 | `ticket_issued` | a player gets an lsp ticket | `ticket_id`, also in the lsp logs |
 | `timer_failed` / `round_finish_failed` | background work failed | `kind`, `error` |
+| `redis_down` / `redis_up` | a connection to Redis is lost / back | `client`, `error` |
 
 Work that takes time carries `duration_ms` and `outcome` (`ok` or
 `error`); failures add `error` (a slug) and `details`, or `err` with the
 stack for a bug. Tokens, tickets and player code never reach the logs.
 
-Levels: `ERROR` when something broke (Piston down, a bug); `WARN` when a
+Levels: `ERROR` when something broke (Piston or Redis down, a bug); `WARN` when a
 client did something it should not (a bad token, a full room, a flood);
 `INFO` otherwise; `DEBUG` for draft saves, sent while players type.
 
