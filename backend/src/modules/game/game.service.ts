@@ -89,39 +89,44 @@ export class GameService {
    */
   async start(code: string, playerId: string): Promise<void> {
 
-    const room = await this.roomService.getAsHost(code, playerId);
+    const { room, result: round } = await this.roomService.mutateAsHost(
+      code,
+      playerId,
+      (room) => {
 
-    // only from the lobby
-    if (room.status !== 'LOBBY') {
-      throw new GameAlreadyStartedError({ code, status: room.status });
-    }
+        // only from the lobby
+        if (room.status !== 'LOBBY') {
+          throw new GameAlreadyStartedError({ code, status: room.status });
+        }
 
-    const challenge = this.challengeService.pickRandom(
-      room.playedChallengeIds,
+        const challenge = this.challengeService.pickRandom(
+          room.playedChallengeIds,
+        );
+
+        // everyone in the room right now takes part
+        room.round = createRound(challenge, [...room.players.keys()]);
+        room.status = 'PLAYING';
+        room.playedChallengeIds.push(challenge.id);
+
+        return room.round;
+      },
     );
-
-    // everyone in the room right now takes part
-    room.round = createRound(challenge, [...room.players.keys()]);
-    room.status = 'PLAYING';
-    room.playedChallengeIds.push(challenge.id);
-
-    await this.roomService.update(room);
-
-    log(this.options.logger, 'info', Event.RoundStarted, {
-      room_code: room.code,
-      player_id: playerId,
-      challenge_id: challenge.id,
-      difficulty: challenge.difficulty,
-      players: room.round.results.size,
-      time_limit_s: challenge.timeLimitSeconds,
-    });
 
     // end the round when the clock runs out, on whichever instance is up
     await this.scheduler.start(
       ROUND_CLOCK_TASK,
       room.code,
-      room.round.endsAt - Date.now(),
+      round.endsAt - Date.now(),
     );
+
+    log(this.options.logger, 'info', Event.RoundStarted, {
+      room_code: room.code,
+      player_id: playerId,
+      challenge_id: round.challenge.id,
+      difficulty: round.challenge.difficulty,
+      players: round.results.size,
+      time_limit_s: round.challenge.timeLimitSeconds,
+    });
   }
 
   /**
@@ -137,17 +142,20 @@ export class GameService {
    */
   async restart(code: string, playerId: string): Promise<void> {
 
-    const room = await this.roomService.getAsHost(code, playerId);
+    const { room } = await this.roomService.mutateAsHost(
+      code,
+      playerId,
+      (room) => {
 
-    // only once the round is over
-    if (room.status !== 'FINISHED') {
-      throw new GameNotFinishedError({ code, status: room.status });
-    }
+        // only once the round is over
+        if (room.status !== 'FINISHED') {
+          throw new GameNotFinishedError({ code, status: room.status });
+        }
 
-    room.round = null;
-    room.status = 'LOBBY';
-
-    await this.roomService.update(room);
+        room.round = null;
+        room.status = 'LOBBY';
+      },
+    );
 
     log(this.options.logger, 'info', Event.RoundRestarted, {
       room_code: room.code,
@@ -183,23 +191,24 @@ export class GameService {
       // time is up for everyone: submit what they have
       await this.submissionService.submitDrafts(code);
 
-      const room = await this.roomService.find(code);
+      const change = await this.roomService.mutateIfExists(code, (room) => {
 
-      // room gone or round already over
-      if (!room || room.status !== 'PLAYING') {
-        return;
-      }
+        // round already over
+        if (room.status !== 'PLAYING') {
+          return false;
+        }
 
-      room.status = 'FINISHED';
+        room.status = 'FINISHED';
 
-      await this.roomService.update(room);
+        return true;
+      });
 
       // how the round went, once every submission is judged
-      if (room.round) {
+      if (change?.result && change.room.round) {
         log(this.options.logger, 'info', Event.RoundFinished, {
-          room_code: room.code,
+          room_code: code,
           reason,
-          ...roundSummary(room.round),
+          ...roundSummary(change.room.round),
         });
       }
 

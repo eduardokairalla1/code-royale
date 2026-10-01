@@ -3,6 +3,12 @@
  */
 
 // --- IMPORTS ---
+import {
+  ChallengeService,
+} from '../../src/modules/challenge/challenge.service.js';
+import { RoomStore } from '../../src/modules/room/room.store.js';
+import type { Room } from '../../src/modules/room/room.types.js';
+import { createPlayer } from '../../src/modules/room/room.utils.js';
 import { acquireLock } from '../../src/shared/redis/lock.js';
 import { releaseLock } from '../../src/shared/redis/lock.js';
 import type { RedisClient } from '../../src/shared/redis/redis.js';
@@ -20,6 +26,8 @@ import { it } from 'vitest';
 import { vi } from 'vitest';
 
 // --- GLOBALS ---
+const FIXTURES = new URL('../fixtures/challenges/', import.meta.url);
+
 // a client on the test's keys, fresh for each test
 let redis: RedisClient;
 
@@ -56,6 +64,29 @@ function startScheduler(leaseMs = 60_000): Scheduler {
   return scheduler;
 }
 
+/**
+ * A lobby room hosted by Ana.
+ *
+ * @param {string} code The room code.
+ *
+ * @returns {Room} The room.
+ */
+function lobby(code: string): Room {
+
+  const host = createPlayer('Ana');
+
+  return {
+    code,
+    hostId: host.id,
+    status: 'LOBBY',
+    players: new Map([[host.id, host]]),
+    round: null,
+    playedChallengeIds: [],
+    createdAt: Date.now(),
+    version: 0,
+  };
+}
+
 beforeEach(async () => {
   redis = createClient({
     url: process.env.REDIS_URL as string,
@@ -67,6 +98,70 @@ beforeEach(async () => {
 afterEach(async () => {
   await Promise.all(schedulers.splice(0).map((s) => s.stop()));
   await redis.close();
+});
+
+describe('room store', () => {
+
+  const challenges = ChallengeService.load(FIXTURES);
+
+  it('keeps every change made at once to the same room', async () => {
+    const store = new RoomStore(redis, (id) => challenges.find(id));
+
+    await store.create(lobby('AAAAA'));
+
+    await Promise.all(Array.from({ length: 30 }, (_, index) => {
+      return store.mutate('AAAAA', (room) => {
+        room.playedChallengeIds.push(String(index));
+      });
+    }));
+
+    const room = await store.get('AAAAA');
+
+    expect(room?.playedChallengeIds).toHaveLength(30);
+    expect(room?.version).toBe(30);
+  });
+
+  it('refuses a code in use and writes nothing for no change', async () => {
+    const store = new RoomStore(redis, (id) => challenges.find(id));
+
+    expect(await store.create(lobby('BBBBB'))).toBe(true);
+    expect(await store.create(lobby('BBBBB'))).toBe(false);
+
+    const change = await store.mutate('BBBBB', () => 'same');
+
+    expect(change).toMatchObject({ result: 'same', changed: false });
+    expect(await store.count()).toBe(1);
+
+    await store.delete('BBBBB');
+
+    expect(await store.mutate('BBBBB', () => 'gone')).toBeNull();
+    expect(await store.count()).toBe(0);
+  });
+
+  it('keeps a round across the round trip, its challenge by id', async () => {
+    const store = new RoomStore(redis, (id) => challenges.find(id));
+    const room = lobby('CCCCC');
+    const challenge = challenges.pickRandom([]);
+    const hostId = room.hostId;
+
+    room.status = 'PLAYING';
+    room.round = {
+      challenge,
+      startedAt: 1,
+      endsAt: 2,
+      results: new Map([[hostId, {
+        submittedAt: 1,
+        passed: 1,
+        total: 2,
+        autoSubmitted: false,
+      }]]),
+      submissions: new Map([[hostId, { language: 'python', code: 'x' }]]),
+    };
+
+    await store.create(room);
+
+    expect(await store.get('CCCCC')).toEqual(room);
+  });
 });
 
 describe('scheduler', () => {

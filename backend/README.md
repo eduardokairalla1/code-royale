@@ -1,10 +1,10 @@
 # Code Royale backend
 
-The game server. It keeps the rooms in memory, runs rounds, sends player
+The game server. It keeps the rooms in Redis, runs rounds, sends player
 code to [Piston](https://github.com/engineer-man/piston) and ranks the
 results. Browsers talk to it over http and Socket.IO, all under `/api`.
 
-Stack: Node 24, TypeScript, Fastify, Socket.IO, Zod, Vitest.
+Stack: Node 24, TypeScript, Fastify, Socket.IO, Redis, Zod, Vitest.
 
 ## Running it
 
@@ -85,6 +85,30 @@ Levels: `ERROR` when something broke (Piston or Redis down, a bug); `WARN` when 
 client did something it should not (a bad token, a full room, a flood);
 `INFO` otherwise; `DEBUG` for draft saves, sent while players type.
 
+## State
+
+Everything lives in Redis, under `REDIS_KEY_PREFIX`:
+
+| Key | What it holds |
+|---|---|
+| `room:<code>` | the room as json; its round keeps the challenge id |
+| `rooms` | every room code, to count them for `MAX_ROOMS` |
+| `drafts:<code>:<round start>` | each player's latest code, a hash |
+| `schedule` | timers: round end, empty room, reconnect grace |
+| `runs` | example runs going on, for `MAX_CONCURRENT_RUNS` |
+| `lock:run:<player>` / `lock:finish:<code>` | one run per player, one instance closing a round |
+
+A room changes only through a compare and set, retried when two
+instances change it at once. Every saved change bumps its `version`, so
+clients drop states that arrive late.
+
+Timers are polled by every instance and run by whichever claims them
+first. A claimed timer whose instance dies runs again elsewhere after a
+few minutes.
+
+Keys expire 24 hours after their last change, in case nothing deletes
+them. Removing a challenge file breaks the rooms playing it.
+
 ## Challenges
 
 One json file per challenge in `challenges/`, loaded on boot. A broken
@@ -111,9 +135,10 @@ Keep each test's input under about 30 KB: Piston refuses bigger requests.
 ```
 src/
 ├── server.ts, app.ts, socket.ts, config.ts
-├── shared/              # errors, logging, ids, validation
+├── shared/              # errors, logging, ids, validation, scheduler
+│   └── redis/           # connections, locks, slots
 └── modules/
-    ├── room/            # create, join, presence, host hand-over
+    ├── room/            # create, join, presence, host hand-over, store
     ├── game/            # rounds, timer, ranking
     ├── challenge/       # loads and picks challenges
     ├── submission/      # example runs, drafts, judging
@@ -121,7 +146,7 @@ src/
     ├── language/        # the language catalog
     ├── lsp/             # tickets for the lsp service
     └── system/          # health check
-tests/                   # unit, integration, piston
+tests/                   # unit, integration (on Redis), piston
 ```
 
 Code style: [docs/code-guidelines.md](../docs/code-guidelines.md).

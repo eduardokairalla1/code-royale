@@ -14,6 +14,7 @@ import { RoomCodeGenerationError } from './room.errors.js';
 import { RoomFullError } from './room.errors.js';
 import { RoomNotFoundError } from './room.errors.js';
 import { TooManyRoomsError } from './room.errors.js';
+import type { RoomChange } from './room.store.js';
 import type { RoomStore } from './room.store.js';
 import type { Player } from './room.types.js';
 import type { Room } from './room.types.js';
@@ -108,7 +109,8 @@ export class RoomService {
    *
    * @returns {Promise<JoinResult>} The new room and its host.
    *
-   * @throws {TooManyRoomsError} When the server holds as many as it may.
+   * @throws {TooManyRoomsError} When as many rooms exist as allowed.
+   * @throws {RoomCodeGenerationError} When every code tried was taken.
    */
   async create(hostName: string): Promise<JoinResult> {
 
@@ -119,20 +121,10 @@ export class RoomService {
     }
 
     const host = createPlayer(hostName);
-
-    const room: Room = {
-      code: await this.generateUniqueCode(),
-      hostId: host.id,
-      status: 'LOBBY',
-      players: new Map([[host.id, host]]),
-      round: null,
-      playedChallengeIds: [],
-      createdAt: Date.now(),
-      version: 0,
-    };
+    const room = await this.createWithFreeCode(host);
 
     // nobody connected yet: the room expires if the host never shows up
-    await this.update(room);
+    await this.afterChange(room);
 
     log(this.options.logger, 'info', Event.RoomCreated, {
       room_code: room.code,
@@ -147,31 +139,30 @@ export class RoomService {
    * Add a new player to a room; mid game, they wait for the next round.
    *
    * @param {string} code The room code.
-   * @param {string} name The player's name.
+   * @param {string} playerName The player's name.
    *
    * @returns {Promise<JoinResult>} The room and the new player.
    *
    * @throws {RoomNotFoundError} When the room does not exist.
    * @throws {RoomFullError} When the room reached the player limit.
    */
-  async join(code: string, name: string): Promise<JoinResult> {
+  async join(code: string, playerName: string): Promise<JoinResult> {
 
-    const room = await this.getOrThrow(code);
-
-    // room reached the player limit
-    if (room.players.size >= this.options.maxPlayersPerRoom) {
-      throw new RoomFullError({
-        code: room.code,
-        players: room.players.size,
-      });
-    }
-
-    const player = createPlayer(name);
-
-    room.players.set(player.id, player);
+    const player = createPlayer(playerName);
 
     // the new player must connect within the grace period
-    await this.update(room);
+    const { room } = await this.mutate(code, (room) => {
+
+      // room reached the player limit
+      if (room.players.size >= this.options.maxPlayersPerRoom) {
+        throw new RoomFullError({
+          code: room.code,
+          players: room.players.size,
+        });
+      }
+
+      room.players.set(player.id, player);
+    });
 
     log(this.options.logger, 'info', Event.PlayerJoined, {
       room_code: room.code,
@@ -215,43 +206,82 @@ export class RoomService {
   }
 
   /**
-   * Find a room on behalf of its host, for host-only actions.
+   * Change a room atomically, then apply the cleanup rules and notify.
+   *
+   * @param {string} code The room code, in any case.
+   * @param {(room: Room) => T} change Changes the room; may run more than
+   *                                   once, so it must not do anything else.
+   *
+   * @returns {Promise<RoomChange<T>>} The saved room and what the change
+   *                                   returned.
+   *
+   * @throws {RoomNotFoundError} When the room does not exist.
+   */
+  async mutate<T>(
+    code: string,
+    change: (room: Room) => T,
+  ): Promise<RoomChange<T>> {
+
+    const result = await this.mutateIfExists(code, change);
+
+    if (!result) {
+      throw new RoomNotFoundError({ code: normalizeRoomCode(code) });
+    }
+
+    return result;
+  }
+
+  /**
+   * Change a room atomically, if it still exists.
+   *
+   * @param {string} code The room code, in any case.
+   * @param {(room: Room) => T} change Changes the room, see mutate.
+   *
+   * @returns {Promise<RoomChange<T> | null>} The saved room and what the
+   *                                          change returned, or null when
+   *                                          the room is gone.
+   */
+  async mutateIfExists<T>(
+    code: string,
+    change: (room: Room) => T,
+  ): Promise<RoomChange<T> | null> {
+
+    const result = await this.store.mutate(normalizeRoomCode(code), change);
+
+    if (result?.changed) {
+      await this.afterChange(result.room);
+    }
+
+    return result;
+  }
+
+  /**
+   * Change a room on behalf of its host, for host-only actions.
    *
    * @param {string} code The room code, in any case.
    * @param {string} playerId Who is asking.
+   * @param {(room: Room) => T} change Changes the room, see mutate.
    *
-   * @returns {Promise<Room>} The room.
+   * @returns {Promise<RoomChange<T>>} The saved room and what the change
+   *                                   returned.
    *
    * @throws {RoomNotFoundError} When the room does not exist.
    * @throws {NotHostError} When the player is not the host.
    */
-  async getAsHost(code: string, playerId: string): Promise<Room> {
+  async mutateAsHost<T>(
+    code: string,
+    playerId: string,
+    change: (room: Room) => T,
+  ): Promise<RoomChange<T>> {
 
-    const room = await this.getOrThrow(code);
+    return this.mutate(code, (room) => {
 
-    if (room.hostId !== playerId) {
-      throw new NotHostError({ code: room.code, playerId });
-    }
+      if (room.hostId !== playerId) {
+        throw new NotHostError({ code: room.code, playerId });
+      }
 
-    return room;
-  }
-
-  /**
-   * Save a changed room, re-apply the cleanup rules and notify listeners.
-   *
-   * @param {Room} room The changed room.
-   *
-   * @returns {Promise<void>}
-   */
-  async update(room: Room): Promise<void> {
-
-    // clients keep the newest state they get
-    room.version += 1;
-
-    await this.store.save(room);
-
-    await this.scheduleCleanup(room);
-    this.notify(room);
+      return change(room);
+    });
   }
 
   /**
@@ -297,21 +327,27 @@ export class RoomService {
     socketId: string,
   ): Promise<string | null> {
 
-    const room = await this.store.get(code);
-    const player = room?.players.get(playerId);
+    const change = await this.mutateIfExists(code, (room) => {
+      const player = room.players.get(playerId);
 
-    // removed between authentication and connection
-    if (!room || !player) {
+      // removed between authentication and connection
+      if (!player) {
+        throw new InvalidPlayerTokenError({ code, playerId });
+      }
+
+      const replacedSocketId = player.socketId;
+
+      player.socketId = socketId;
+
+      return replacedSocketId;
+    });
+
+    // room gone between authentication and connection
+    if (!change) {
       throw new InvalidPlayerTokenError({ code, playerId });
     }
 
-    const replacedSocketId = player.socketId;
-
-    player.socketId = socketId;
-
-    await this.update(room);
-
-    return replacedSocketId;
+    return change.result;
   }
 
   /**
@@ -329,17 +365,14 @@ export class RoomService {
     socketId: string,
   ): Promise<void> {
 
-    const room = await this.store.get(code);
-    const player = room?.players.get(playerId);
+    await this.mutateIfExists(code, (room) => {
+      const player = room.players.get(playerId);
 
-    // stale socket: the player left or is already on another socket
-    if (!room || !player || player.socketId !== socketId) {
-      return;
-    }
-
-    player.socketId = null;
-
-    await this.update(room);
+      // stale socket: the player left or is already on another socket
+      if (player?.socketId === socketId) {
+        player.socketId = null;
+      }
+    });
   }
 
   /**
@@ -369,16 +402,34 @@ export class RoomService {
     reason: LeaveReason,
   ): Promise<void> {
 
-    const room = await this.store.get(code);
+    await this.scheduler.clear(PLAYER_GRACE_TASK, graceKey(code, playerId));
 
-    // already gone
-    if (!room || !room.players.has(playerId)) {
+    const change = await this.store.mutate(code, (room) => {
+
+      // already gone
+      if (!room.players.has(playerId)) {
+        return null;
+      }
+
+      const previousHost = room.hostId;
+
+      room.players.delete(playerId);
+      room.round?.results.delete(playerId);
+      room.round?.submissions.delete(playerId);
+
+      // host left: hand it over
+      if (room.hostId === playerId && room.players.size > 0) {
+        room.hostId = pickNextHost(room)?.id ?? room.hostId;
+      }
+
+      return { previousHost };
+    });
+
+    if (!change?.result) {
       return;
     }
 
-    await this.scheduler.clear(PLAYER_GRACE_TASK, graceKey(code, playerId));
-    room.players.delete(playerId);
-    room.round?.results.delete(playerId);
+    const { room, result } = change;
 
     log(this.options.logger, 'info', Event.PlayerLeft, {
       room_code: room.code,
@@ -393,32 +444,15 @@ export class RoomService {
       return;
     }
 
-    // host left: hand it over
-    if (room.hostId === playerId) {
-      this.handOverHost(room);
+    if (room.hostId !== result.previousHost) {
+      log(this.options.logger, 'info', Event.HostChanged, {
+        room_code: room.code,
+        from: result.previousHost,
+        to: room.hostId,
+      });
     }
 
-    await this.update(room);
-  }
-
-  /**
-   * Make the next player host, once the host is gone.
-   *
-   * @param {Room} room The room, without its host.
-   *
-   * @returns {void}
-   */
-  private handOverHost(room: Room): void {
-
-    const previous = room.hostId;
-
-    room.hostId = pickNextHost(room)?.id ?? room.hostId;
-
-    log(this.options.logger, 'info', Event.HostChanged, {
-      room_code: room.code,
-      from: previous,
-      to: room.hostId,
-    });
+    await this.afterChange(room);
   }
 
   /**
@@ -468,6 +502,19 @@ export class RoomService {
       age_ms: Date.now() - room.createdAt,
       rounds: room.playedChallengeIds.length,
     });
+  }
+
+  /**
+   * Apply the cleanup rules to a saved room and tell the listeners.
+   *
+   * @param {Room} room The room that just changed.
+   *
+   * @returns {Promise<void>}
+   */
+  private async afterChange(room: Room): Promise<void> {
+
+    await this.scheduleCleanup(room);
+    this.notify(room);
   }
 
   /**
@@ -533,20 +580,31 @@ export class RoomService {
   }
 
   /**
-   * Generate a room code that is not in use.
+   * Store a new room under a code that is not in use.
    *
-   * @returns {Promise<string>} A free room code.
+   * @param {Player} host The room's host.
+   *
+   * @returns {Promise<Room>} The stored room.
    *
    * @throws {RoomCodeGenerationError} When every attempt collided.
    */
-  private async generateUniqueCode(): Promise<string> {
+  private async createWithFreeCode(host: Player): Promise<Room> {
 
     // retry on collision
     for (let attempt = 0; attempt < MAX_ROOM_CODE_ATTEMPTS; attempt++) {
-      const code = generateRoomCode();
+      const room: Room = {
+        code: generateRoomCode(),
+        hostId: host.id,
+        status: 'LOBBY',
+        players: new Map([[host.id, host]]),
+        round: null,
+        playedChallengeIds: [],
+        createdAt: Date.now(),
+        version: 0,
+      };
 
-      if (!(await this.store.get(code))) {
-        return code;
+      if (await this.store.create(room)) {
+        return room;
       }
     }
 

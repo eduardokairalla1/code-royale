@@ -13,10 +13,10 @@ import { pickLanguages } from './modules/language/language.catalog.js';
 import { languageRoutes } from './modules/language/language.routes.js';
 import { LspService } from './modules/lsp/lsp.service.js';
 import { registerLspSocket } from './modules/lsp/lsp.socket.js';
-import { MemoryRoomStore } from './modules/room/memory-room.store.js';
 import { roomRoutes } from './modules/room/room.routes.js';
 import { RoomService } from './modules/room/room.service.js';
 import { registerRoomSocket } from './modules/room/room.socket.js';
+import { RoomStore } from './modules/room/room.store.js';
 import { DraftStore } from './modules/submission/draft.store.js';
 import { SubmissionService } from './modules/submission/submission.service.js';
 import {
@@ -104,12 +104,15 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
     logger: app.log,
   });
 
+  const challengeService = options.challengeService
+    ?? ChallengeService.load(config.challengesDir);
+
   const judgeTimeoutMs = options.judgeTimeoutMs
     ?? config.pistonTimeoutMs + JUDGE_MARGIN_MS;
 
   // wire the services
   const roomService = new RoomService(
-    new MemoryRoomStore(),
+    new RoomStore(redis.client, (id) => challengeService.find(id)),
     scheduler,
     {
       emptyRoomTtlMs: options.emptyRoomTtlMs ?? config.emptyRoomTtlMs,
@@ -134,9 +137,6 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
       logger: app.log,
     },
   );
-
-  const challengeService = options.challengeService
-    ?? ChallengeService.load(config.challengesDir);
 
   const gameService = new GameService(
     roomService,
