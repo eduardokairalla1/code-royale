@@ -63,7 +63,7 @@ curl -s localhost:3001/lsp/health
 Or on the host, with Go and whichever servers are on the `PATH`:
 
 ```bash
-LSP_SECRET=$(openssl rand -hex 32) go run .
+LSP_SECRET=$(openssl rand -hex 32) REDIS_URL=redis://localhost:6379 go run .
 go test ./...
 ```
 
@@ -73,6 +73,8 @@ The backend needs the same `LSP_SECRET`, and the frontend
 | Env var | Default | What it does |
 |---|---|---|
 | `LSP_SECRET` | required | shared with the backend, 32+ characters |
+| `REDIS_URL` | required | spent tickets and sessions per player, e.g. `redis://localhost:6379` |
+| `REDIS_KEY_PREFIX` | `code-royale:` | put before every key |
 | `PORT` / `HOST` | `3001` / `0.0.0.0` | where it listens |
 | `CORS_ORIGIN` | `http://localhost:5173` | origins browsers connect from |
 | `MAX_SESSIONS` | `16` | servers at once; each takes 100 to 700 MB |

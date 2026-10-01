@@ -16,6 +16,7 @@ import (
 
 	"code-royale/lsp/internal/config"
 	"code-royale/lsp/internal/logging"
+	"code-royale/lsp/internal/redisclient"
 	"code-royale/lsp/internal/server"
 )
 
@@ -50,6 +51,14 @@ func run() error {
 	}
 
 	logger := logging.New(os.Stdout, cfg.LogLevel, version, commit)
+
+	client, err := redisclient.Connect(cfg.RedisURL)
+
+	if err != nil {
+		return err
+	}
+
+	defer client.Close()
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM,
 		os.Interrupt)

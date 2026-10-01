@@ -3,6 +3,7 @@ package logging
 // --- IMPORTS ---
 import (
 	"log/slog"
+	"net/url"
 	"time"
 
 	"code-royale/lsp/internal/config"
@@ -34,7 +35,20 @@ func LogStarted(
 		slog.Any("enabled_languages", enabled),
 		slog.Any("allowed_origins", cfg.AllowedOrigins),
 		slog.Bool("isolated", isolated),
+		slog.String("redis", redisHost(cfg.RedisURL)),
 	)
+}
+
+// redisHost is where redis is, without the credentials a url may carry.
+func redisHost(raw string) string {
+
+	parsed, err := url.Parse(raw)
+
+	if err != nil {
+		return ""
+	}
+
+	return parsed.Host
 }
 
 // LogStopped records the service stopping; an error if sessions were cut.

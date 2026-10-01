@@ -21,6 +21,11 @@ type Config struct {
 	// shared with the backend, which signs the tickets
 	Secret string
 
+	// spent tickets and sessions per player, shared by every instance
+	RedisURL string
+	// prepended to every key, so apps can share one Redis
+	RedisKeyPrefix string
+
 	// hosts browsers may connect from, e.g. "localhost:5173"
 	AllowedOrigins []string
 
@@ -55,10 +60,12 @@ func Load() (Config, error) {
 	}
 
 	cfg := Config{
-		Host:          env("HOST", "0.0.0.0"),
-		Secret:        env("LSP_SECRET", ""),
-		WorkspacesDir: env("WORKSPACES_DIR", defaultWorkspacesDir()),
-		NodeTypesDir:  env("NODE_TYPES_DIR", "/opt/lsp/node_modules/@types"),
+		Host:           env("HOST", "0.0.0.0"),
+		Secret:         env("LSP_SECRET", ""),
+		RedisURL:       env("REDIS_URL", ""),
+		RedisKeyPrefix: env("REDIS_KEY_PREFIX", "code-royale:"),
+		WorkspacesDir:  env("WORKSPACES_DIR", defaultWorkspacesDir()),
+		NodeTypesDir:   env("NODE_TYPES_DIR", "/opt/lsp/node_modules/@types"),
 	}
 
 	var err error
@@ -88,6 +95,11 @@ func Load() (Config, error) {
 	check(err)
 
 	cfg.EnabledLanguages = commaList(env("ENABLED_LANGUAGES", ""))
+
+	// every instance must see the same spent tickets
+	if cfg.RedisURL == "" {
+		check(errors.New("REDIS_URL: required"))
+	}
 
 	// a short secret makes the tickets guessable
 	if len(cfg.Secret) < 32 {
