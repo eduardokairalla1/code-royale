@@ -1,9 +1,14 @@
 /**
- * Submission helpers: compare outputs and summarize test runs.
+ * Submission helpers: find the round, compare outputs, summarize runs.
  */
 
 // --- IMPORTS ---
 import type { ExecutionResult } from '../executor/executor.types.js';
+import type { PlayerResult } from '../game/game.types.js';
+import type { Round } from '../game/game.types.js';
+import type { Room } from '../room/room.types.js';
+import { NotInRoundError } from './submission.errors.js';
+import { RoundNotRunningError } from './submission.errors.js';
 import type { TestStatus } from './submission.types.js';
 import type { Verdict } from './submission.types.js';
 
@@ -97,4 +102,40 @@ export function countStatuses(
   }
 
   return counts;
+}
+
+/**
+ * Find the running round of a room, on behalf of one of its players.
+ *
+ * @param {Room} room The room.
+ * @param {string} playerId Who is asking.
+ * @param {number} now The current time.
+ *
+ * @returns {{ round: Round, result: PlayerResult }} The round and the
+ *                                                   player's result.
+ *
+ * @throws {RoundNotRunningError} When no round is running.
+ * @throws {NotInRoundError} When the player is not in the round.
+ */
+export function findActiveRound(
+  room: Room,
+  playerId: string,
+  now: number,
+): { round: Round; result: PlayerResult } {
+
+  const round = room.round;
+
+  // no round, or its time is already up
+  if (room.status !== 'PLAYING' || !round || now >= round.endsAt) {
+    throw new RoundNotRunningError({ code: room.code, status: room.status });
+  }
+
+  const result = round.results.get(playerId);
+
+  // joined mid round: waits for the next one
+  if (!result) {
+    throw new NotInRoundError({ code: room.code, playerId });
+  }
+
+  return { round, result };
 }

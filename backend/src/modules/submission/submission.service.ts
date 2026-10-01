@@ -15,20 +15,16 @@ import type { CodeExecutor } from '../executor/executor.types.js';
 import type { ExecutionResult } from '../executor/executor.types.js';
 import { GameNotFinishedError } from '../game/game.errors.js';
 import type { Draft } from '../game/game.types.js';
-import type { PlayerResult } from '../game/game.types.js';
-import type { Round } from '../game/game.types.js';
 import type { RoomService } from '../room/room.service.js';
-import type { Room } from '../room/room.types.js';
 import type { DraftStore } from './draft.store.js';
 import { AlreadySubmittedError } from './submission.errors.js';
 import { NoSubmissionError } from './submission.errors.js';
-import { NotInRoundError } from './submission.errors.js';
-import { RoundNotRunningError } from './submission.errors.js';
 import { RunInProgressError } from './submission.errors.js';
 import type { ExampleResult } from './submission.types.js';
 import type { TestStatus } from './submission.types.js';
 import type { Verdict } from './submission.types.js';
 import { countStatuses } from './submission.utils.js';
+import { findActiveRound } from './submission.utils.js';
 import { judgeRun } from './submission.utils.js';
 import { toVerdict } from './submission.utils.js';
 import type { FastifyBaseLogger } from 'fastify';
@@ -46,13 +42,9 @@ export interface SubmissionServiceOptions {
 }
 
 /**
- * A running round seen by one of its players.
+ * A submission to judge: whose, and what they sent.
  */
-interface ActiveRound {
-  room: Room;
-  round: Round;
-  result: PlayerResult;
-}
+type PendingSubmission = [playerId: string, draft: Draft, auto: boolean];
 
 /**
  * Runs and judges player code through the code executor.
@@ -109,7 +101,8 @@ export class SubmissionService {
     draft: Draft,
   ): Promise<ExampleResult[]> {
 
-    const { round } = await this.getActiveRound(code, playerId);
+    const room = await this.roomService.getOrThrow(code);
+    const { round } = findActiveRound(room, playerId, Date.now());
 
     // one run at a time per player
     const lockKey = `lock:run:${playerId}`;
@@ -213,30 +206,42 @@ export class SubmissionService {
     // tracked from the start, so the round end waits for it
     return this.track(code, async () => {
 
-      const { room, round, result } = await this.getActiveRound(
+      // lock it right away: everyone sees it as submitted, being judged
+      const { result: startedAt } = await this.roomService.mutate(
         code,
-        playerId,
+        (room) => {
+          const { round, result } = findActiveRound(
+            room,
+            playerId,
+            Date.now(),
+          );
+
+          // one submission per round
+          if (result.submittedAt !== null) {
+            throw new AlreadySubmittedError({ code, playerId });
+          }
+
+          result.submittedAt = Date.now();
+          round.submissions.set(playerId, draft);
+
+          return round.startedAt;
+        },
       );
 
-      // one submission per round
-      if (result.submittedAt !== null) {
-        throw new AlreadySubmittedError({ code, playerId });
-      }
-
-      // lock it right away: everyone sees it as submitted, being judged
-      result.submittedAt = Date.now();
-      round.submissions.set(playerId, draft);
-
-      await this.roomService.update(room);
-
       try {
-        return await this.judge(room.code, playerId, draft, false);
+        return await this.judge(code, startedAt, playerId, draft, false);
 
       // could not judge: undo, so the player can submit again
       } catch (error) {
-        result.submittedAt = null;
-        round.submissions.delete(playerId);
-        await this.roomService.update(room);
+        await this.roomService.mutateIfExists(code, (room) => {
+          const round = room.round;
+          const result = round?.results.get(playerId);
+
+          if (round?.startedAt === startedAt && result) {
+            result.submittedAt = null;
+            round.submissions.delete(playerId);
+          }
+        });
 
         throw error;
       }
@@ -285,72 +290,84 @@ export class SubmissionService {
     await Promise.allSettled([...(this.judging.get(code) ?? [])]);
 
     const room = await this.roomService.find(code);
-    const round = room?.round;
+    const startedAt = room?.round?.startedAt;
 
-    if (!room || !round) {
+    if (!room || room.status !== 'PLAYING' || startedAt === undefined) {
       return;
     }
 
-    const drafts = await this.drafts.getAll(room.code, round.startedAt);
-    const pending: Promise<unknown>[] = [];
+    const drafts = await this.drafts.getAll(room.code, startedAt);
 
-    for (const [playerId, result] of round.results) {
-      const draft = drafts.get(playerId);
+    // submitted at the deadline, on behalf of who never did
+    const change = await this.roomService.mutateIfExists(code, (current) => {
+      const round = current.round;
+      const pending: PendingSubmission[] = [];
 
-      // already submitted, or never wrote anything
-      if (result.submittedAt !== null || !draft?.code.trim()) {
-        continue;
+      if (current.status !== 'PLAYING' || round?.startedAt !== startedAt) {
+        return pending;
       }
 
-      // submitted at the deadline, on their behalf
-      result.submittedAt = round.endsAt;
-      result.autoSubmitted = true;
-      round.submissions.set(playerId, draft);
+      for (const [playerId, result] of round.results) {
+        const draft = drafts.get(playerId);
 
-      pending.push(this.judgeDraft(room.code, playerId, draft, result));
-    }
+        // already submitted, or never wrote anything
+        if (result.submittedAt !== null || !draft?.code.trim()) {
+          continue;
+        }
 
-    await this.roomService.update(room);
-    await Promise.all(pending);
+        result.submittedAt = round.endsAt;
+        result.autoSubmitted = true;
+        round.submissions.set(playerId, draft);
+
+        pending.push([playerId, draft, true]);
+      }
+
+      return pending;
+    });
+
+    await this.judgeAll(code, startedAt, change?.result ?? []);
   }
 
   /**
-   * Judge a draft submitted at time out; a failure scores zero.
+   * Judge submissions at the end of a round; a failure scores zero.
    *
    * @param {string} code The room code.
-   * @param {string} playerId Whose draft it is.
-   * @param {Draft} draft The language and the code.
-   * @param {PlayerResult} result The player's result, already submitted.
+   * @param {number} startedAt The round they belong to.
+   * @param {PendingSubmission[]} pending What to judge.
    *
    * @returns {Promise<void>}
    */
-  private async judgeDraft(
+  private async judgeAll(
     code: string,
-    playerId: string,
-    draft: Draft,
-    result: PlayerResult,
+    startedAt: number,
+    pending: PendingSubmission[],
   ): Promise<void> {
 
-    try {
-      await this.judge(code, playerId, draft, true);
+    await Promise.all(pending.map(async ([playerId, draft, auto]) => {
 
-    // sandbox down at the deadline: nothing passed; judge logged why
-    } catch {
-      const room = await this.roomService.find(code);
+      try {
+        await this.judge(code, startedAt, playerId, draft, auto);
 
-      result.passed = 0;
-      result.total = room?.round?.challenge.tests.length ?? 0;
+      // sandbox down at the deadline: nothing passed; judge logged why
+      } catch {
+        await this.roomService.mutateIfExists(code, (room) => {
+          const round = room.round;
+          const result = round?.results.get(playerId);
 
-      if (room) {
-        await this.roomService.update(room);
+          if (round?.startedAt === startedAt && result) {
+            result.passed = 0;
+            result.total = round.challenge.tests.length;
+          }
+        });
       }
-    }
+    }));
   }
 
   /**
    * Run the hidden tests and record how many passed.
    *
    * @param {string} code The room code.
+   * @param {number} startedAt The round it belongs to.
    * @param {string} playerId Whose submission it is.
    * @param {Draft} draft The language and the code.
    * @param {boolean} auto Whether time ran out and it was sent for them.
@@ -361,6 +378,7 @@ export class SubmissionService {
    */
   private async judge(
     code: string,
+    startedAt: number,
     playerId: string,
     draft: Draft,
     auto: boolean,
@@ -382,18 +400,22 @@ export class SubmissionService {
       this.setStatuses(event, statuses);
       event.set({ verdict: verdict.status });
 
-      // the player may have left while it ran
-      const current = await this.roomService.find(code);
-      const result = current?.round?.results.get(playerId);
+      // the player may have left, or the round ended, while it ran
+      const change = await this.roomService.mutateIfExists(code, (current) => {
+        const round = current.round;
+        const result = round?.results.get(playerId);
 
-      if (current && result) {
+        if (round?.startedAt !== startedAt || !result) {
+          return false;
+        }
+
         result.passed = verdict.passed;
         result.total = verdict.total;
 
-        await this.roomService.update(current);
-      }
+        return true;
+      });
 
-      event.set({ recorded: Boolean(current && result) });
+      event.set({ recorded: change?.result ?? false });
 
       return verdict;
 
@@ -469,40 +491,6 @@ export class SubmissionService {
     } finally {
       event.set({ executor_ms: Math.round(performance.now() - startedAt) });
     }
-  }
-
-  /**
-   * Find the running round of a room, on behalf of one of its players.
-   *
-   * @param {string} code The room code.
-   * @param {string} playerId Who is asking.
-   *
-   * @returns {Promise<ActiveRound>} The room, its round and the result.
-   *
-   * @throws {RoundNotRunningError} When no round is running.
-   * @throws {NotInRoundError} When the player is not in the round.
-   */
-  private async getActiveRound(
-    code: string,
-    playerId: string,
-  ): Promise<ActiveRound> {
-
-    const room = await this.roomService.getOrThrow(code);
-    const round = room.round;
-
-    // no round, or its time is already up
-    if (room.status !== 'PLAYING' || !round || Date.now() >= round.endsAt) {
-      throw new RoundNotRunningError({ code, status: room.status });
-    }
-
-    const result = round.results.get(playerId);
-
-    // joined mid round: waits for the next one
-    if (!result) {
-      throw new NotInRoundError({ code, playerId });
-    }
-
-    return { room, round, result };
   }
 
   /**
