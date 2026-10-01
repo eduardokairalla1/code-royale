@@ -43,6 +43,9 @@ const SCHEDULER_POLL_MS = 250;
 // how long a timer may run before another instance runs it again
 const SCHEDULER_LEASE_MS = 5 * 60 * 1000;
 
+// a judging this much slower than the sandbox timeout counts as lost
+const JUDGE_MARGIN_MS = 10_000;
+
 // --- CODE ---
 /**
  * What the app can be built with; tests swap in fakes and short timers.
@@ -61,6 +64,7 @@ export interface AppOptions {
   redisUrl?: string;
   redisKeyPrefix?: string;
   schedulerPollMs?: number;
+  judgeTimeoutMs?: number;
   logger?: boolean;
   logStream?: { write(line: string): void };
 }
@@ -100,6 +104,9 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
     logger: app.log,
   });
 
+  const judgeTimeoutMs = options.judgeTimeoutMs
+    ?? config.pistonTimeoutMs + JUDGE_MARGIN_MS;
+
   // wire the services
   const roomService = new RoomService(
     new MemoryRoomStore(),
@@ -131,7 +138,12 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
     challengeService,
     submissionService,
     scheduler,
-    app.log,
+    redis.client,
+    {
+      // submissions in flight waited for, then the drafts judged
+      finishTimeoutMs: judgeTimeoutMs * 3,
+      logger: app.log,
+    },
   );
 
   const lspSecret = options.lspSecret ?? config.lspSecret;

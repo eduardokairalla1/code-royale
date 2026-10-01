@@ -31,6 +31,7 @@ export const TEST_TIMINGS = {
   // fixture challenges last 2 seconds
   roundMs: 2000,
   schedulerPollMs: 20,
+  judgeTimeoutMs: 2000,
 };
 
 // every server of a test shares its keys, as instances of one deployment
@@ -82,6 +83,7 @@ export async function startServer(
     emptyRoomTtlMs: TEST_TIMINGS.emptyRoomTtlMs,
     reconnectGraceMs: TEST_TIMINGS.reconnectGraceMs,
     schedulerPollMs: TEST_TIMINGS.schedulerPollMs,
+    judgeTimeoutMs: TEST_TIMINGS.judgeTimeoutMs,
     redisKeyPrefix: keyPrefix,
     ...options,
   });
