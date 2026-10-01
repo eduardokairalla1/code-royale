@@ -4,6 +4,10 @@ The game server. It keeps the rooms in Redis, runs rounds, sends player
 code to [Piston](https://github.com/engineer-man/piston) and ranks the
 results. Browsers talk to it over http and Socket.IO, all under `/api`.
 
+Every instance shares the same Redis, so you can run as many as you
+need behind a load balancer. No sticky sessions: the frontend only
+uses websockets.
+
 Stack: Node 24, TypeScript, Fastify, Socket.IO, Redis, Zod, Vitest.
 
 ## Running it

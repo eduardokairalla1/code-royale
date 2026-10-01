@@ -96,7 +96,8 @@ export function createSocketServer(app: FastifyInstance): AppServer {
       socket.data.event?.set({ closed_by: 'shutdown' });
     }
 
-    io.disconnectSockets(true);
+    // this instance's sockets only: the others keep theirs
+    io.local.disconnectSockets(true);
   });
 
   io.on('connection', (socket) => limitEvents(socket, app));
