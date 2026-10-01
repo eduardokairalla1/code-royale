@@ -26,6 +26,7 @@ import { registerErrorHandlers } from './shared/errors/error-handler.js';
 import { logStarted } from './shared/logging/lifecycle.js';
 import { loggerOptions } from './shared/logging/logger.js';
 import { registerRequestLog } from './shared/logging/request-log.js';
+import { RedisConnections } from './shared/redis/redis.js';
 import { API_PREFIX } from './socket.js';
 import { createSocketServer } from './socket.js';
 import cors from '@fastify/cors';
@@ -48,6 +49,8 @@ export interface AppOptions {
   maxConcurrentRuns?: number;
   enabledLanguages?: string[];
   lspSecret?: string;
+  redisUrl?: string;
+  redisKeyPrefix?: string;
   logger?: boolean;
   logStream?: { write(line: string): void };
 }
@@ -71,6 +74,14 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
 
     // one line per request instead, see registerRequestLog
     logController: new LogController({ disableRequestLogging: true }),
+  });
+
+  // shared state: every instance of the backend uses the same Redis
+  const redisKeyPrefix = options.redisKeyPrefix ?? config.redisKeyPrefix;
+  const redis = new RedisConnections({
+    url: options.redisUrl ?? config.redisUrl,
+    keyPrefix: redisKeyPrefix,
+    logger: app.log,
   });
 
   // wire the services
@@ -125,6 +136,7 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
         options.maxConcurrentRuns ?? config.maxConcurrentRuns,
       lsp: lspSecret !== undefined,
       piston: new URL(config.pistonUrl).origin,
+      redis: new URL(options.redisUrl ?? config.redisUrl).host,
     });
   });
 
@@ -157,9 +169,15 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
   });
   registerLspSocket(io, lspService, app.log, enabledLanguages);
 
-  // let the disconnects being saved land before closing
+  // connect before serving
+  app.addHook('onReady', async () => {
+    await redis.connect();
+  });
+
+  // let the disconnects being saved land before redis goes away
   app.addHook('onClose', async () => {
     await roomSocket.drain();
+    await redis.close();
   });
 
   return app;

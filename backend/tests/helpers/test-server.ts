@@ -80,6 +80,7 @@ export async function startServer(
     challengeService: ChallengeService.load(FIXTURES),
     emptyRoomTtlMs: TEST_TIMINGS.emptyRoomTtlMs,
     reconnectGraceMs: TEST_TIMINGS.reconnectGraceMs,
+    redisKeyPrefix: keyPrefix,
     ...options,
   });
 

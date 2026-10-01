@@ -60,6 +60,11 @@ const envSchema = z.object({
     })
     .default(LANGUAGE_IDS),
 
+  // rooms, rounds and timers, shared by every instance of the backend
+  REDIS_URL: z.url(),
+  // prepended to every key, so other apps can share the same Redis
+  REDIS_KEY_PREFIX: z.string().default('code-royale:'),
+
   // signs the tickets for the lsp service; unset turns autocomplete off
   LSP_SECRET: z.string().min(32).optional(),
   LSP_TICKET_TTL_SECONDS: z.coerce.number().int().positive().default(60),
@@ -89,6 +94,8 @@ export const config = {
   maxCodeLength: env.MAX_CODE_LENGTH,
   maxConcurrentRuns: env.MAX_CONCURRENT_RUNS,
   enabledLanguages: env.ENABLED_LANGUAGES,
+  redisUrl: env.REDIS_URL,
+  redisKeyPrefix: env.REDIS_KEY_PREFIX,
   lspSecret: env.LSP_SECRET,
   lspTicketTtlMs: env.LSP_TICKET_TTL_SECONDS * 1000,
 };

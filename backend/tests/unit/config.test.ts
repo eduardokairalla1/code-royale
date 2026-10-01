@@ -17,7 +17,9 @@ import { vi } from 'vitest';
  *
  * @returns {Promise<any>} The parsed config.
  */
-async function loadConfig(env: Record<string, string>): Promise<any> {
+async function loadConfig(
+  env: Record<string, string | undefined>,
+): Promise<any> {
 
   vi.resetModules();
 
@@ -47,6 +49,7 @@ describe('config', () => {
       pistonTimeoutMs: 60_000,
       maxCodeLength: 64_000,
       maxConcurrentRuns: 16,
+      redisKeyPrefix: 'code-royale:',
     });
     expect(config.enabledLanguages).toHaveLength(8);
   });
@@ -82,6 +85,8 @@ describe('config', () => {
     [{ LOG_LEVEL: 'verbose' }, /LOG_LEVEL/],
     [{ MAX_PLAYERS_PER_ROOM: '0' }, /MAX_PLAYERS_PER_ROOM/],
     [{ CORS_ORIGIN: ' , ' }, /CORS_ORIGIN/],
+    [{ REDIS_URL: undefined }, /REDIS_URL/],
+    [{ REDIS_URL: 'not a url' }, /REDIS_URL/],
   ])('refuses %j on boot', async (env, reason) => {
     await expect(loadConfig(env)).rejects.toThrow(reason);
   });
