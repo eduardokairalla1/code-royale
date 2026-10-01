@@ -50,6 +50,8 @@ export interface CodeEditorProps {
   language: string;
   value: string;
   readOnly?: boolean;
+  // faded, to show it is locked; defaults to readOnly
+  dimmed?: boolean;
   onChange: (value: string) => void;
   // a ticket to the lsp service, for completions; none without it
   requestTicket?: (language: string) => Promise<string>;
@@ -74,6 +76,7 @@ export function CodeEditor({
   language,
   value,
   readOnly = false,
+  dimmed = readOnly,
   onChange,
   requestTicket,
 }: CodeEditorProps) {
@@ -106,7 +109,7 @@ export function CodeEditor({
   };
 
   return (
-    <div className={styles.sheet} data-readonly={readOnly}>
+    <div className={styles.sheet} data-dimmed={dimmed}>
       <SketchFrame fill="var(--paper-light)" shadow={5} />
       <div className={styles.editor}>
         <Editor

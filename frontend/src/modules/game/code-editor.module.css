@@ -12,7 +12,7 @@
   border-radius: 4px;
 }
 
-.sheet[data-readonly='true'] .editor {
+.sheet[data-dimmed='true'] .editor {
   opacity: 0.75;
 }
 
