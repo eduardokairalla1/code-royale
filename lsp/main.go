@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"code-royale/lsp/internal/config"
+	"code-royale/lsp/internal/leases"
 	"code-royale/lsp/internal/ledger"
 	"code-royale/lsp/internal/logging"
 	"code-royale/lsp/internal/redisclient"
@@ -71,6 +72,8 @@ func run() error {
 
 	srv := server.New(sessions, cfg, logger, server.Shared{
 		Ledger: ledger.NewRedis(client, cfg.RedisKeyPrefix),
+		Leases: leases.NewRedis(client, cfg.RedisKeyPrefix,
+			cfg.MaxSessionsPerPlayer),
 	})
 
 	httpServer := &http.Server{

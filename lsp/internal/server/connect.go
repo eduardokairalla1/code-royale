@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"code-royale/lsp/internal/leases"
 	"code-royale/lsp/internal/session"
 
 	"github.com/coder/websocket"
@@ -59,15 +60,24 @@ func (s *Server) connect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// caps in total and per player
-	slot, err := s.limiter.acquire(claims.Subject)
+	// caps on this instance, then per player across every instance
+	slot, err := s.limiter.acquire()
 
 	if err != nil {
 		s.refuse(conn, event, busyCode(err), err)
 		return
 	}
 
-	defer s.limiter.release(slot, claims.Subject)
+	defer s.limiter.release(slot)
+
+	lease, err := s.leases.Acquire(r.Context(), claims.Subject)
+
+	if err != nil {
+		s.refuse(conn, event, busyCode(err), err)
+		return
+	}
+
+	defer lease.Release()
 
 	event.slot = slot
 	event.isolated = s.isolate
@@ -123,7 +133,7 @@ func refusalCode(err error) websocket.StatusCode {
 // busyCode is the close code for a full service or a player at their cap.
 func busyCode(err error) websocket.StatusCode {
 
-	if errors.Is(err, errPlayerFull) {
+	if errors.Is(err, leases.ErrFull) {
 		return closePlayerBusy
 	}
 

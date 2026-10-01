@@ -11,49 +11,33 @@ import (
 // errServerFull is returned when every slot is taken.
 var errServerFull = errors.New("too many sessions")
 
-// errPlayerFull is returned when the player already runs their share.
-var errPlayerFull = errors.New("too many sessions for this player")
-
 // --- CODE ---
 
-// limiter caps sessions in total and per player; the slot picks the uid.
+// limiter caps this instance's sessions; the slot picks the uid. The cap
+// per player is shared by every instance, see the leases package.
 type limiter struct {
 	mu sync.Mutex
 
 	// slots[i] is true while a session holds slot i
 	slots []bool
 	used  int
-
-	// sessions per player id, and the most one player may hold
-	players   map[string]int
-	maxPlayer int
 }
 
-// newLimiter builds a limiter with the given caps.
-func newLimiter(maxTotal, maxPerPlayer int) *limiter {
-
-	return &limiter{
-		slots:     make([]bool, maxTotal),
-		players:   map[string]int{},
-		maxPlayer: maxPerPlayer,
-	}
+// newLimiter builds a limiter with the given cap.
+func newLimiter(maxTotal int) *limiter {
+	return &limiter{slots: make([]bool, maxTotal)}
 }
 
-// acquire takes a free slot for the player, returning its number.
-func (l *limiter) acquire(player string) (int, error) {
+// acquire takes a free slot, returning its number.
+func (l *limiter) acquire() (int, error) {
 
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
-	if l.players[player] >= l.maxPlayer {
-		return 0, errPlayerFull
-	}
 
 	for slot, taken := range l.slots {
 		if !taken {
 			l.slots[slot] = true
 			l.used++
-			l.players[player]++
 
 			return slot, nil
 		}
@@ -62,19 +46,14 @@ func (l *limiter) acquire(player string) (int, error) {
 	return 0, errServerFull
 }
 
-// release gives the player's slot back.
-func (l *limiter) release(slot int, player string) {
+// release gives a slot back.
+func (l *limiter) release(slot int) {
 
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
 	l.slots[slot] = false
 	l.used--
-
-	// forget players with nothing left, so the map does not grow
-	if l.players[player]--; l.players[player] <= 0 {
-		delete(l.players, player)
-	}
 }
 
 // active is how many sessions are running.
