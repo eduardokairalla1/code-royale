@@ -49,6 +49,9 @@ x-lsp-env: &lsp-env
   IDLE_TIMEOUT_SECONDS: ${LSP_IDLE_TIMEOUT_SECONDS:-600}
   ENABLED_LANGUAGES: ${ENABLED_LANGUAGES:-python,javascript,typescript,go,java,c,cpp,rust}
 
+  # spent tickets and sessions per player, shared by every instance
+  REDIS_URL: redis://redis:6379
+
 # --- piston environment ---
 x-piston-env: &piston-env
 
@@ -157,10 +160,14 @@ services:
       - /tmp:size=2g,mode=1777
     mem_limit: ${LSP_MEMORY_LIMIT:-8g}
     pids_limit: 2048
+    depends_on:
+      redis:
+        condition: service_healthy
     ports:
       - "3001:3001"
     networks:
       - edge
+      - state
 
   # --- data services ---
   redis:
