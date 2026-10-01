@@ -40,8 +40,9 @@ curl -s localhost:3001/lsp/health
 
 ## Development
 
-The dev overlay runs only Piston, on `127.0.0.1:2000`. You run the other
-services on your machine and point the frontend at them.
+The dev overlay runs only Piston, on `127.0.0.1:2000`, and Redis, on
+`127.0.0.1:6379`. You run the other services on your machine and point
+the frontend at them.
 
 ```bash
 docker compose -f docker-compose.yaml -f docker-compose-dev.yaml up -d
