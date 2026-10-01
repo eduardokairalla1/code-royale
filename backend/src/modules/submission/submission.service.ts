@@ -238,6 +238,7 @@ export class SubmissionService {
       // submitted at the deadline, on their behalf
       result.submittedAt = round.endsAt;
       result.autoSubmitted = true;
+      round.submissions.set(playerId, draft);
 
       pending.push(this.judgeDraft(room.code, playerId, draft, result));
     }
