@@ -41,3 +41,12 @@ export class RunInProgressError extends AppError {
   static override readonly STATUS_CODE = 429;
   static override readonly LOG_LEVEL = 'warn';
 }
+
+/**
+ * Raised when asking for the code of a player who did not submit.
+ */
+export class NoSubmissionError extends AppError {
+  static override readonly MESSAGE = 'This player did not submit anything!';
+  static override readonly STATUS_CODE = 404;
+  static override readonly LOG_LEVEL = 'warn';
+}

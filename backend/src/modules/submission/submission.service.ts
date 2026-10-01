@@ -9,12 +9,14 @@ import type { ChallengeCase } from '../challenge/challenge.types.js';
 import { ExecutorBusyError } from '../executor/executor.errors.js';
 import type { CodeExecutor } from '../executor/executor.types.js';
 import type { ExecutionResult } from '../executor/executor.types.js';
+import { GameNotFinishedError } from '../game/game.errors.js';
 import type { Draft } from '../game/game.types.js';
 import type { PlayerResult } from '../game/game.types.js';
 import type { Round } from '../game/game.types.js';
 import type { RoomService } from '../room/room.service.js';
 import type { Room } from '../room/room.types.js';
 import { AlreadySubmittedError } from './submission.errors.js';
+import { NoSubmissionError } from './submission.errors.js';
 import { NotInRoundError } from './submission.errors.js';
 import { RoundNotRunningError } from './submission.errors.js';
 import { RunInProgressError } from './submission.errors.js';
@@ -210,6 +212,35 @@ export class SubmissionService {
         throw error;
       }
     });
+  }
+
+  /**
+   * The code a player submitted, once the round is over.
+   *
+   * @param {string} code The room code.
+   * @param {string} playerId Whose code to show.
+   *
+   * @returns {Promise<Draft>} The language and the code that was judged.
+   *
+   * @throws {GameNotFinishedError} When the round is not over.
+   * @throws {NoSubmissionError} When the player did not submit.
+   */
+  async getSubmission(code: string, playerId: string): Promise<Draft> {
+
+    const room = await this.roomService.getOrThrow(code);
+
+    // hidden while the round runs, so nobody copies
+    if (room.status !== 'FINISHED' || !room.round) {
+      throw new GameNotFinishedError({ code, status: room.status });
+    }
+
+    const submission = room.round.submissions.get(playerId);
+
+    if (!submission) {
+      throw new NoSubmissionError({ code, playerId });
+    }
+
+    return submission;
   }
 
   /**
