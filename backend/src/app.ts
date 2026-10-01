@@ -145,7 +145,7 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
     scheduler,
     redis.client,
     {
-      // submissions in flight waited for, then the drafts judged
+      // drafts judged, then whatever got lost waited for and judged again
       finishTimeoutMs: judgeTimeoutMs * 3,
       logger: app.log,
     },
