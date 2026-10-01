@@ -149,13 +149,18 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
   // register the socket handlers
   const io = createSocketServer(app);
 
-  registerRoomSocket(io, roomService, app.log);
+  const roomSocket = registerRoomSocket(io, roomService, app.log);
   registerGameSocket(io, gameService, app.log);
   registerSubmissionSocket(io, submissionService, app.log, {
     languageIds: enabledLanguages,
     maxCodeLength: options.maxCodeLength ?? config.maxCodeLength,
   });
   registerLspSocket(io, lspService, app.log, enabledLanguages);
+
+  // let the disconnects being saved land before closing
+  app.addHook('onClose', async () => {
+    await roomSocket.drain();
+  });
 
   return app;
 }

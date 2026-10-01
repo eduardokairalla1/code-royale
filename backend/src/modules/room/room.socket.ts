@@ -25,19 +25,30 @@ const handshakeSchema = z.object({
 
 // --- CODE ---
 /**
+ * What the room handlers expose to the app.
+ */
+export interface RoomSocket {
+  // waits for the disconnects being saved, before shutting down
+  drain: () => Promise<void>;
+}
+
+/**
  * Register the room handlers on the socket server.
  *
  * @param {AppServer} io The Socket.IO server.
  * @param {RoomService} roomService The room rules.
  * @param {FastifyBaseLogger} logger Where to log errors.
  *
- * @returns {void}
+ * @returns {RoomSocket} The handlers' shutdown hook.
  */
 export function registerRoomSocket(
   io: AppServer,
   roomService: RoomService,
   logger: FastifyBaseLogger,
-): void {
+): RoomSocket {
+
+  // disconnects being saved
+  const pending = new Set<Promise<void>>();
 
   // push the new state to everyone in the room on every change
   roomService.onRoomChanged((room) => {
@@ -82,8 +93,14 @@ export function registerRoomSocket(
 
   // bind every accepted socket to its player
   io.on('connection', (socket) => {
-    void handleConnection(io, socket, roomService, logger);
+    void handleConnection(io, socket, roomService, logger, pending);
   });
+
+  return {
+    drain: async () => {
+      await Promise.allSettled([...pending]);
+    },
+  };
 }
 
 /**
@@ -93,6 +110,7 @@ export function registerRoomSocket(
  * @param {AppSocket} socket The new socket.
  * @param {RoomService} roomService The room rules.
  * @param {FastifyBaseLogger} logger Where to log errors.
+ * @param {Set<Promise<void>>} pending Where disconnects being saved go.
  *
  * @returns {Promise<void>}
  */
@@ -101,9 +119,17 @@ async function handleConnection(
   socket: AppSocket,
   roomService: RoomService,
   logger: FastifyBaseLogger,
+  pending: Set<Promise<void>>,
 ): Promise<void> {
 
   const { roomCode, playerId, event } = socket.data;
+
+  // keep a disconnect being saved, so shutting down waits for it
+  const track = (saving: Promise<void>): Promise<void> => {
+    pending.add(saving);
+    void saving.finally(() => pending.delete(saving));
+    return saving;
+  };
 
   // listen before any await, so no event is missed
   socket.on('room:leave', async (ack) => {
@@ -119,18 +145,20 @@ async function handleConnection(
   });
 
   // reason is socket.io's, e.g. "transport close" or "ping timeout"
-  socket.on('disconnect', async (reason) => {
+  socket.on('disconnect', (reason) => {
     event.set({ reason });
 
-    try {
-      await roomService.disconnect(roomCode, playerId, socket.id);
+    void track((async () => {
+      try {
+        await roomService.disconnect(roomCode, playerId, socket.id);
 
-    // nothing to tell the client, it is already gone
-    } catch (error) {
-      event.fail(error);
-    }
+      // nothing to tell the client, it is already gone
+      } catch (error) {
+        event.fail(error);
+      }
 
-    event.emit(logger, Event.Socket);
+      event.emit(logger, Event.Socket);
+    })());
   });
 
   // join the room first, so this socket gets the state broadcast too
