@@ -4,6 +4,7 @@
 
 // --- IMPORTS ---
 import type { Room } from '../room/room.types.ts';
+import type { Draft } from './game.types.ts';
 import { findResult } from './game.utils.ts';
 import { Match } from './match.tsx';
 import { Results } from './results.tsx';
@@ -41,6 +42,9 @@ export function GameScreen({
         selfId={selfId}
         onRestart={async () => {
           await send('game:restart');
+        }}
+        onLoadCode={async (playerId) => {
+          return await send('submission:code', { playerId }) as Draft;
         }}
       />
     );
