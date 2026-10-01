@@ -33,7 +33,6 @@ export function createRound(challenge: Challenge, playerIds: string[]): Round {
         { submittedAt: null, passed: null, total: null, autoSubmitted: false },
       ]),
     ),
-    drafts: new Map(),
     submissions: new Map(),
   };
 }

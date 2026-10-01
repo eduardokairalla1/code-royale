@@ -15,6 +15,7 @@ import type { PlayerResult } from '../game/game.types.js';
 import type { Round } from '../game/game.types.js';
 import type { RoomService } from '../room/room.service.js';
 import type { Room } from '../room/room.types.js';
+import type { DraftStore } from './draft.store.js';
 import { AlreadySubmittedError } from './submission.errors.js';
 import { NoSubmissionError } from './submission.errors.js';
 import { NotInRoundError } from './submission.errors.js';
@@ -53,12 +54,14 @@ export class SubmissionService {
    * Create the service.
    *
    * @param {RoomService} roomService The room rules.
+   * @param {DraftStore} drafts Where drafts are kept.
    * @param {CodeExecutor} executor Runs the code in a sandbox.
    * @param {FastifyBaseLogger} logger Where runs and verdicts are logged.
    * @param {number} maxConcurrentRuns Example runs at once, across rooms.
    */
   constructor(
     private readonly roomService: RoomService,
+    private readonly drafts: DraftStore,
     private readonly executor: CodeExecutor,
     private readonly logger: FastifyBaseLogger,
     private readonly maxConcurrentRuns: number,
@@ -157,10 +160,8 @@ export class SubmissionService {
       return;
     }
 
-    round.drafts.set(playerId, draft);
-
     // no broadcast: drafts are private and change on every keystroke
-    await this.roomService.save(room);
+    await this.drafts.save(room.code, round.startedAt, playerId, draft);
   }
 
   /**
@@ -195,7 +196,6 @@ export class SubmissionService {
 
       // lock it right away: everyone sees it as submitted, being judged
       result.submittedAt = Date.now();
-      round.drafts.set(playerId, draft);
       round.submissions.set(playerId, draft);
 
       await this.roomService.update(room);
@@ -262,10 +262,11 @@ export class SubmissionService {
       return;
     }
 
+    const drafts = await this.drafts.getAll(room.code, round.startedAt);
     const pending: Promise<unknown>[] = [];
 
     for (const [playerId, result] of round.results) {
-      const draft = round.drafts.get(playerId);
+      const draft = drafts.get(playerId);
 
       // already submitted, or never wrote anything
       if (result.submittedAt !== null || !draft?.code.trim()) {
