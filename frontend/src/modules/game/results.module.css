@@ -182,6 +182,12 @@
   color: var(--ink-soft);
 }
 
+/* a smaller button, to fit the ranking row */
+.viewCode > span[data-sketch-face] {
+  padding: 2px 12px 4px;
+  font-size: 17px;
+}
+
 .missing {
   color: var(--ink-soft);
 }

@@ -1,5 +1,5 @@
 /**
- * End of the round: the podium, the full ranking and "play again".
+ * End of the round: the podium, the ranking, everyone's code, "play again".
  */
 
 // --- IMPORTS ---
@@ -11,10 +11,13 @@ import { SketchFrame } from '../../components/sketch-frame/sketch-frame.tsx';
 import { describeUnknownError } from '../../shared/errors.ts';
 import type { PlayerResult } from '../room/room.types.ts';
 import type { Room } from '../room/room.types.ts';
+import { CodeViewer } from './code-viewer.tsx';
+import type { Draft } from './game.types.ts';
 import { findPlayer } from './game.utils.ts';
 import { findResult } from './game.utils.ts';
 import { formatClock } from './game.utils.ts';
 import styles from './results.module.css';
+import { createSubmissionCache } from './submission-cache.ts';
 import confetti from 'canvas-confetti';
 import { motion } from 'motion/react';
 import { useEffect } from 'react';
@@ -37,16 +40,23 @@ export interface ResultsProps {
   selfId: string;
   // asks the server to send everyone back to the lobby
   onRestart: () => Promise<void>;
+  // asks the server for the code a player submitted
+  onLoadCode: (playerId: string) => Promise<Draft>;
 }
 
 /**
  * Render the results of the last round.
  *
- * @param {ResultsProps} props The room, who is looking and the restart.
+ * @param {ResultsProps} props The room, who is looking and the commands.
  *
  * @returns {JSX.Element} The results screen.
  */
-export function Results({ room, selfId, onRestart }: ResultsProps) {
+export function Results({
+  room,
+  selfId,
+  onRestart,
+  onLoadCode,
+}: ResultsProps) {
 
   const round = room.round;
   const results = round?.results ?? [];
@@ -56,6 +66,10 @@ export function Results({ room, selfId, onRestart }: ResultsProps) {
 
   const [restarting, setRestarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<PlayerResult | null>(null);
+
+  // reopening someone's code does not ask the server again
+  const [codes] = useState(() => createSubmissionCache(onLoadCode));
 
   // celebrate once, if anyone scored
   useEffect(() => {
@@ -160,6 +174,16 @@ export function Results({ room, selfId, onRestart }: ResultsProps) {
                 {result.playerId === selfId && ' (you)'}
               </span>
               <ResultCells result={result} startedAt={round?.startedAt ?? 0} />
+              {result.submittedAt !== null && (
+                <Button
+                  variant="secondary"
+                  className={styles.viewCode}
+                  aria-label={`View ${nameOf(result.playerId)}'s code`}
+                  onClick={() => setViewing(result)}
+                >
+                  Code
+                </Button>
+              )}
             </motion.li>
           ))}
         </ol>
@@ -179,6 +203,14 @@ export function Results({ room, selfId, onRestart }: ResultsProps) {
           : <p className={styles.waiting}>Waiting for the host...</p>}
         {error && <p className={styles.error}>{error}</p>}
       </div>
+
+      <CodeViewer
+        result={viewing}
+        name={viewing ? nameOf(viewing.playerId) : ''}
+        startedAt={round?.startedAt ?? 0}
+        loadCode={codes.get}
+        onClose={() => setViewing(null)}
+      />
     </div>
   );
 }
