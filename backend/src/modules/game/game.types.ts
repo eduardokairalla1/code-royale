@@ -35,6 +35,7 @@ export interface Round {
   results: Map<string, PlayerResult>;
   // never sent to clients: judged as is when time runs out
   drafts: Map<string, Draft>;
+  submissions: Map<string, Draft>;
 }
 
 /**

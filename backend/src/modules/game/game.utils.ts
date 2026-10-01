@@ -34,6 +34,7 @@ export function createRound(challenge: Challenge, playerIds: string[]): Round {
       ]),
     ),
     drafts: new Map(),
+    submissions: new Map(),
   };
 }
 

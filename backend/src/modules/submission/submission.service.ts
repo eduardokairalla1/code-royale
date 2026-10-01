@@ -188,6 +188,7 @@ export class SubmissionService {
       // lock it right away: everyone sees it as submitted, being judged
       result.submittedAt = Date.now();
       round.drafts.set(playerId, draft);
+      round.submissions.set(playerId, draft);
 
       await this.roomService.update(room);
 
@@ -197,6 +198,7 @@ export class SubmissionService {
       // could not judge: undo, so the player can submit again
       } catch (error) {
         result.submittedAt = null;
+        round.submissions.delete(playerId);
         await this.roomService.update(room);
 
         throw error;
