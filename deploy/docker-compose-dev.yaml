@@ -17,3 +17,8 @@ services:
   piston:
     ports:
       - "127.0.0.1:2000:2000"
+
+  # reachable from the host, for the backend and lsp running outside docker
+  redis:
+    ports:
+      - "127.0.0.1:6379:6379"
