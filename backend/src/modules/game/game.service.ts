@@ -6,6 +6,9 @@
 import { describeError } from '../../shared/logging/error-fields.js';
 import { Event } from '../../shared/logging/events.js';
 import { log } from '../../shared/logging/events.js';
+import { acquireLock } from '../../shared/redis/lock.js';
+import { releaseLock } from '../../shared/redis/lock.js';
+import type { RedisClient } from '../../shared/redis/redis.js';
 import type { Scheduler } from '../../shared/scheduler.js';
 import type { ChallengeService } from '../challenge/challenge.service.js';
 import type { RoomService } from '../room/room.service.js';
@@ -26,12 +29,18 @@ type FinishReason = 'time_up' | 'everyone_judged';
 
 // --- CODE ---
 /**
+ * Settings and dependencies of the game service.
+ */
+export interface GameServiceOptions {
+  // the longest closing a round may take, judging included
+  finishTimeoutMs: number;
+  logger: FastifyBaseLogger;
+}
+
+/**
  * Round lifecycle of a room: LOBBY -> PLAYING -> FINISHED -> LOBBY.
  */
 export class GameService {
-
-  // rooms whose round is being closed, so it only happens once
-  private readonly finishing = new Set<string>();
 
   /**
    * Create the service.
@@ -40,14 +49,16 @@ export class GameService {
    * @param {ChallengeService} challengeService The challenge catalog.
    * @param {SubmissionService} submissionService Judges the submissions.
    * @param {Scheduler} scheduler Ends rounds on time.
-   * @param {FastifyBaseLogger} logger Where failures are logged.
+   * @param {RedisClient} redis Holds the lock that closes a round.
+   * @param {GameServiceOptions} options Timeout and logger.
    */
   constructor(
     private readonly roomService: RoomService,
     private readonly challengeService: ChallengeService,
     private readonly submissionService: SubmissionService,
     private readonly scheduler: Scheduler,
-    private readonly logger: FastifyBaseLogger,
+    private readonly redis: RedisClient,
+    private readonly options: GameServiceOptions,
   ) {
     scheduler.handle(ROUND_CLOCK_TASK, (code) => this.finish(code, 'time_up'));
 
@@ -56,7 +67,7 @@ export class GameService {
       if (room.status === 'PLAYING' && room.round
         && everyoneJudged(room.round)) {
         this.finish(room.code, 'everyone_judged').catch((error: unknown) => {
-          log(this.logger, 'error', Event.RoundFinishFailed, {
+          log(this.options.logger, 'error', Event.RoundFinishFailed, {
             room_code: room.code,
             ...describeError(error).fields,
           });
@@ -96,7 +107,7 @@ export class GameService {
 
     await this.roomService.update(room);
 
-    log(this.logger, 'info', Event.RoundStarted, {
+    log(this.options.logger, 'info', Event.RoundStarted, {
       room_code: room.code,
       player_id: playerId,
       challenge_id: challenge.id,
@@ -138,7 +149,7 @@ export class GameService {
 
     await this.roomService.update(room);
 
-    log(this.logger, 'info', Event.RoundRestarted, {
+    log(this.options.logger, 'info', Event.RoundRestarted, {
       room_code: room.code,
       player_id: playerId,
     });
@@ -154,12 +165,17 @@ export class GameService {
    */
   private async finish(code: string, reason: FinishReason): Promise<void> {
 
+    const lockKey = `lock:finish:${code}`;
+    const token = await acquireLock(
+      this.redis,
+      lockKey,
+      this.options.finishTimeoutMs,
+    );
+
     // already being closed, by the clock or by the last submission
-    if (this.finishing.has(code)) {
+    if (!token) {
       return;
     }
-
-    this.finishing.add(code);
 
     try {
       await this.scheduler.clear(ROUND_CLOCK_TASK, code);
@@ -180,7 +196,7 @@ export class GameService {
 
       // how the round went, once every submission is judged
       if (room.round) {
-        log(this.logger, 'info', Event.RoundFinished, {
+        log(this.options.logger, 'info', Event.RoundFinished, {
           room_code: room.code,
           reason,
           ...roundSummary(room.round),
@@ -188,7 +204,7 @@ export class GameService {
       }
 
     } finally {
-      this.finishing.delete(code);
+      await releaseLock(this.redis, lockKey, token);
     }
   }
 }
