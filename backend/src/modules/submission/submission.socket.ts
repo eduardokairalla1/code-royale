@@ -1,5 +1,5 @@
 /**
- * Submission socket handlers: run the examples, sync drafts and submit.
+ * Submission socket handlers: run, sync drafts, submit and show the code.
  */
 
 // --- IMPORTS ---
@@ -9,6 +9,12 @@ import type { AppServer } from '../../socket.js';
 import type { SubmissionService } from './submission.service.js';
 import type { FastifyBaseLogger } from 'fastify';
 import { z } from 'zod';
+
+// --- GLOBALS ---
+// whose submitted code to show
+const codeRequestSchema = z.object({
+  playerId: z.string().min(1),
+});
 
 // --- CODE ---
 /**
@@ -65,6 +71,14 @@ export function registerSubmissionSocket(
       void runCommand(socket, 'submission:submit', ack, logger, () => {
         const draft = parseInput(codeSchema, payload);
         return submissionService.submit(roomCode, playerId, draft);
+      });
+    });
+
+    // the code another player submitted, once the round is over
+    socket.on('submission:code', (payload, ack) => {
+      void runCommand(socket, 'submission:code', ack, logger, () => {
+        const request = parseInput(codeRequestSchema, payload);
+        return submissionService.getSubmission(roomCode, request.playerId);
       });
     });
   });

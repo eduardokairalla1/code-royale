@@ -275,3 +275,93 @@ describe('end of the round', () => {
     expect(response.error).toBe('round_not_running_error');
   });
 });
+
+describe('showing the code', () => {
+
+  it('shows the judged code to anyone in the room', async () => {
+    const { server, host, clients: [ana, bob] } = await roundWith([
+      'Ana',
+      'Bob',
+    ]);
+
+    await ana!.emit('submission:submit', program(PROGRAMS.sum));
+
+    // a draft landing after the submission must not replace it
+    await ana!.emit('submission:draft', program('print:1'));
+    await bob!.emit('submission:submit', program('print:7'));
+    await ana!.waitFor((r) => r.status === 'FINISHED');
+
+    // joined after the round: only watched, can still look
+    const late = await joinRoom(server, host.code, 'Late');
+    const lateClient = await TestClient.join(server, late);
+
+    const own = await ana!.emit('submission:code', { playerId: host.playerId });
+    const seen = await lateClient.emit(
+      'submission:code',
+      { playerId: host.playerId },
+    );
+
+    expect(own).toEqual({ ok: true, data: program(PROGRAMS.sum) });
+    expect(seen).toEqual(own);
+  });
+
+  it('shows the draft submitted when time ran out', async () => {
+    const { clients: [ana, bob] } = await roundWith(['Ana', 'Bob']);
+
+    await bob!.emit('submission:draft', program(PROGRAMS.sum));
+    await ana!.emit('submission:submit', program('print:7'));
+
+    const finished = await ana!.waitFor((r) => r.status === 'FINISHED');
+    const bobId = finished.players.find((p) => p.name === 'Bob')!.id;
+
+    const response = await ana!.emit('submission:code', { playerId: bobId });
+
+    expect(response).toEqual({ ok: true, data: program(PROGRAMS.sum) });
+  });
+
+  it('hides the code while the round runs', async () => {
+    const { host, clients: [ana, bob] } = await roundWith(['Ana', 'Bob']);
+
+    await ana!.emit('submission:submit', program(PROGRAMS.sum));
+
+    const response = await bob!.emit(
+      'submission:code',
+      { playerId: host.playerId },
+    );
+
+    expect(response.error).toBe('game_not_finished_error');
+  });
+
+  it('refuses players who did not submit', async () => {
+    const { clients: [ana, bob] } = await roundWith(['Ana', 'Bob']);
+
+    await ana!.emit('submission:submit', program(PROGRAMS.sum));
+
+    const finished = await ana!.waitFor((r) => r.status === 'FINISHED');
+    const bobId = finished.players.find((p) => p.name === 'Bob')!.id;
+
+    const missing = await ana!.emit('submission:code', { playerId: bobId });
+    const unknown = await ana!.emit('submission:code', { playerId: 'nope' });
+    const invalid = await ana!.emit('submission:code', 'not an object');
+
+    expect(missing.error).toBe('no_submission_error');
+    expect(unknown.error).toBe('no_submission_error');
+    expect(invalid.error).toBe('request_validation_error');
+  });
+
+  it('forgets the code once the host goes back to the lobby', async () => {
+    const { host, clients: [ana] } = await roundWith(['Ana']);
+
+    await ana!.emit('submission:submit', program(PROGRAMS.sum));
+    await ana!.waitFor((r) => r.status === 'FINISHED');
+    await ana!.emit('game:restart');
+    await ana!.waitFor((r) => r.status === 'LOBBY');
+
+    const response = await ana!.emit(
+      'submission:code',
+      { playerId: host.playerId },
+    );
+
+    expect(response.error).toBe('game_not_finished_error');
+  });
+});

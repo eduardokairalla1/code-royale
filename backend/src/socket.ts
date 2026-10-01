@@ -43,6 +43,7 @@ export interface ClientToServerEvents {
   'submission:run': (payload: unknown, ack?: CommandAck) => void;
   'submission:draft': (payload: unknown, ack?: CommandAck) => void;
   'submission:submit': (payload: unknown, ack?: CommandAck) => void;
+  'submission:code': (payload: unknown, ack?: CommandAck) => void;
   'lsp:ticket': (payload: unknown, ack?: CommandAck) => void;
 }
 
