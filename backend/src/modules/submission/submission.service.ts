@@ -5,6 +5,10 @@
 // --- IMPORTS ---
 import { Event } from '../../shared/logging/events.js';
 import { WideEvent } from '../../shared/logging/wide-event.js';
+import { acquireLock } from '../../shared/redis/lock.js';
+import { releaseLock } from '../../shared/redis/lock.js';
+import type { RedisClient } from '../../shared/redis/redis.js';
+import { Semaphore } from '../../shared/redis/semaphore.js';
 import type { ChallengeCase } from '../challenge/challenge.types.js';
 import { ExecutorBusyError } from '../executor/executor.errors.js';
 import type { CodeExecutor } from '../executor/executor.types.js';
@@ -31,6 +35,17 @@ import type { FastifyBaseLogger } from 'fastify';
 
 // --- CODE ---
 /**
+ * Settings and dependencies of the submission service.
+ */
+export interface SubmissionServiceOptions {
+  // example runs at once, across every room and instance
+  maxConcurrentRuns: number;
+  // the longest a run or a judging may take before it counts as lost
+  judgeTimeoutMs: number;
+  logger: FastifyBaseLogger;
+}
+
+/**
  * A running round seen by one of its players.
  */
 interface ActiveRound {
@@ -44,8 +59,8 @@ interface ActiveRound {
  */
 export class SubmissionService {
 
-  // players whose example run is still going: one at a time each
-  private readonly runningPlayers = new Set<string>();
+  // example runs going on, across every instance
+  private readonly runs: Semaphore;
 
   // submissions being judged, by room code, so the round can wait for them
   private readonly judging = new Map<string, Set<Promise<unknown>>>();
@@ -56,16 +71,23 @@ export class SubmissionService {
    * @param {RoomService} roomService The room rules.
    * @param {DraftStore} drafts Where drafts are kept.
    * @param {CodeExecutor} executor Runs the code in a sandbox.
-   * @param {FastifyBaseLogger} logger Where runs and verdicts are logged.
-   * @param {number} maxConcurrentRuns Example runs at once, across rooms.
+   * @param {RedisClient} redis Holds the run locks.
+   * @param {SubmissionServiceOptions} options Limits and logger.
    */
   constructor(
     private readonly roomService: RoomService,
     private readonly drafts: DraftStore,
     private readonly executor: CodeExecutor,
-    private readonly logger: FastifyBaseLogger,
-    private readonly maxConcurrentRuns: number,
-  ) {}
+    private readonly redis: RedisClient,
+    private readonly options: SubmissionServiceOptions,
+  ) {
+    this.runs = new Semaphore(
+      redis,
+      'runs',
+      options.maxConcurrentRuns,
+      options.judgeTimeoutMs,
+    );
+  }
 
   /**
    * Run the code against the public examples, one run at a time.
@@ -90,20 +112,26 @@ export class SubmissionService {
     const { round } = await this.getActiveRound(code, playerId);
 
     // one run at a time per player
-    if (this.runningPlayers.has(playerId)) {
+    const lockKey = `lock:run:${playerId}`;
+    const token = await acquireLock(
+      this.redis,
+      lockKey,
+      this.options.judgeTimeoutMs,
+    );
+
+    if (!token) {
       throw new RunInProgressError({ code, playerId });
     }
-
-    // past the global cap runs only queue up; submissions are never refused
-    if (this.runningPlayers.size >= this.maxConcurrentRuns) {
-      throw new ExecutorBusyError({ running: this.runningPlayers.size });
-    }
-
-    this.runningPlayers.add(playerId);
 
     const event = this.runEvent(code, playerId, draft);
 
     try {
+
+      // past the global cap runs only queue up; submissions are never refused
+      if (!(await this.runs.acquire(token))) {
+        throw new ExecutorBusyError({ running: await this.runs.count() });
+      }
+
       const examples = round.challenge.examples;
       const results = await this.runCases(draft, examples, event);
 
@@ -130,8 +158,9 @@ export class SubmissionService {
       throw error;
 
     } finally {
-      this.runningPlayers.delete(playerId);
-      event.emit(this.logger, Event.ExamplesRun);
+      await this.runs.release(token);
+      await releaseLock(this.redis, lockKey, token);
+      event.emit(this.options.logger, Event.ExamplesRun);
     }
   }
 
@@ -373,7 +402,7 @@ export class SubmissionService {
       throw error;
 
     } finally {
-      event.emit(this.logger, Event.SubmissionJudged);
+      event.emit(this.options.logger, Event.SubmissionJudged);
     }
   }
 
