@@ -32,6 +32,7 @@ function roomWith(players: Player[]): Room {
     round: null,
     playedChallengeIds: [],
     createdAt: 0,
+    version: 0,
   };
 }
 

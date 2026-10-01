@@ -34,6 +34,7 @@ export interface Room {
   round: Round | null;
   playedChallengeIds: string[];
   createdAt: number;
+  version: number;
 }
 
 /**
@@ -55,4 +56,5 @@ export interface PublicRoom {
   hostId: string;
   players: PublicPlayer[];
   round: PublicRound | null;
+  version: number;
 }

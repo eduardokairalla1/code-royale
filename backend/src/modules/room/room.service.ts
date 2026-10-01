@@ -122,6 +122,7 @@ export class RoomService {
       round: null,
       playedChallengeIds: [],
       createdAt: Date.now(),
+      version: 0,
     };
 
     // nobody connected yet: the room expires if the host never shows up
@@ -248,6 +249,9 @@ export class RoomService {
    * @returns {Promise<void>}
    */
   async update(room: Room): Promise<void> {
+
+    // clients keep the newest state they get
+    room.version += 1;
 
     await this.store.save(room);
 
