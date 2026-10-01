@@ -14,6 +14,7 @@ const MESSAGES: Record<string, string> = {
   round_not_running_error: 'There is no round in progress.',
   not_in_round_error: 'You join the next round.',
   already_submitted_error: 'You already submitted this round.',
+  no_submission_error: 'This player did not submit anything.',
   run_in_progress_error: 'Wait for the current run to finish.',
   executor_unavailable_error: 'Runner unavailable, try again.',
   executor_busy_error: 'Too many runs right now, try again.',
