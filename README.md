@@ -9,15 +9,19 @@ good coding game to play in our spare time.
 
 ```
 browser ──http, Socket.IO──▶ backend ──▶ Piston (runs the code)
+                                 │
+                                 ▼
+                               Redis (rooms, rounds, timers)
+                                 ▲
         ──websocket────────▶ lsp service (autocomplete)
 ```
 
 | Part | What it is | Stack |
 |---|---|---|
 | [frontend](frontend/) | the game's pages | React, TypeScript, Vite, Monaco |
-| [backend](backend/) | rooms, rounds, judging | Node, TypeScript, Fastify, Socket.IO |
-| [lsp](lsp/) | a language server per editor | Go |
-| [deploy](deploy/) | Docker Compose for the whole thing | Docker, Piston |
+| [backend](backend/) | rooms, rounds, judging | Node, TypeScript, Fastify, Socket.IO, Redis |
+| [lsp](lsp/) | a language server per editor | Go, Redis |
+| [deploy](deploy/) | Docker Compose for the whole thing | Docker, Piston, Redis |
 
 Player code runs in [Piston](https://github.com/engineer-man/piston), self hosted.
 
@@ -59,6 +63,8 @@ hidden tests. The format is in
 ## Tests
 
 ```bash
+cd deploy && docker compose -f docker-compose.yaml \
+  -f docker-compose-dev.yaml up -d redis   # backend and lsp tests need it
 cd backend && npm test
 cd frontend && npm test
 cd lsp && go test ./...
