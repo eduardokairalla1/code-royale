@@ -86,6 +86,17 @@ export class ChallengeService {
   }
 
   /**
+   * Find a challenge by its id.
+   *
+   * @param {string} id The challenge id.
+   *
+   * @returns {Challenge | null} The challenge, or null when missing.
+   */
+  find(id: string): Challenge | null {
+    return this.challenges.find((challenge) => challenge.id === id) ?? null;
+  }
+
+  /**
    * How many challenges there are.
    *
    * @returns {number} The number of challenges.
