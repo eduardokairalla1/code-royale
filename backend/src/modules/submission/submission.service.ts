@@ -28,6 +28,11 @@ import { findActiveRound } from './submission.utils.js';
 import { judgeRun } from './submission.utils.js';
 import { toVerdict } from './submission.utils.js';
 import type { FastifyBaseLogger } from 'fastify';
+import { setTimeout as sleep } from 'node:timers/promises';
+
+// --- GLOBALS ---
+// how often the end of a round checks on judging done elsewhere
+const JUDGING_POLL_MS = 100;
 
 // --- CODE ---
 /**
@@ -53,9 +58,6 @@ export class SubmissionService {
 
   // example runs going on, across every instance
   private readonly runs: Semaphore;
-
-  // submissions being judged, by room code, so the round can wait for them
-  private readonly judging = new Map<string, Set<Promise<unknown>>>();
 
   /**
    * Create the service.
@@ -203,49 +205,41 @@ export class SubmissionService {
    */
   async submit(code: string, playerId: string, draft: Draft): Promise<Verdict> {
 
-    // tracked from the start, so the round end waits for it
-    return this.track(code, async () => {
+    // lock it right away: everyone sees it as submitted, being judged
+    const { result: startedAt } = await this.roomService.mutate(
+      code,
+      (room) => {
+        const { round, result } = findActiveRound(room, playerId, Date.now());
 
-      // lock it right away: everyone sees it as submitted, being judged
-      const { result: startedAt } = await this.roomService.mutate(
-        code,
-        (room) => {
-          const { round, result } = findActiveRound(
-            room,
-            playerId,
-            Date.now(),
-          );
+        // one submission per round
+        if (result.submittedAt !== null) {
+          throw new AlreadySubmittedError({ code, playerId });
+        }
 
-          // one submission per round
-          if (result.submittedAt !== null) {
-            throw new AlreadySubmittedError({ code, playerId });
-          }
+        result.submittedAt = Date.now();
+        round.submissions.set(playerId, draft);
 
-          result.submittedAt = Date.now();
-          round.submissions.set(playerId, draft);
+        return round.startedAt;
+      },
+    );
 
-          return round.startedAt;
-        },
-      );
+    try {
+      return await this.judge(code, startedAt, playerId, draft, false);
 
-      try {
-        return await this.judge(code, startedAt, playerId, draft, false);
+    // could not judge: undo, so the player can submit again
+    } catch (error) {
+      await this.roomService.mutateIfExists(code, (room) => {
+        const round = room.round;
+        const result = round?.results.get(playerId);
 
-      // could not judge: undo, so the player can submit again
-      } catch (error) {
-        await this.roomService.mutateIfExists(code, (room) => {
-          const round = room.round;
-          const result = round?.results.get(playerId);
+        if (round?.startedAt === startedAt && result) {
+          result.submittedAt = null;
+          round.submissions.delete(playerId);
+        }
+      });
 
-          if (round?.startedAt === startedAt && result) {
-            result.submittedAt = null;
-            round.submissions.delete(playerId);
-          }
-        });
-
-        throw error;
-      }
-    });
+      throw error;
+    }
   }
 
   /**
@@ -278,16 +272,13 @@ export class SubmissionService {
   }
 
   /**
-   * Time is up: wait for judging, then submit every missing draft.
+   * Time is up: submit every missing draft and see everything judged.
    *
    * @param {string} code The room code.
    *
    * @returns {Promise<void>}
    */
-  async submitDrafts(code: string): Promise<void> {
-
-    // let manual submissions land first
-    await Promise.allSettled([...(this.judging.get(code) ?? [])]);
+  async closeRound(code: string): Promise<void> {
 
     const room = await this.roomService.find(code);
     const startedAt = room?.round?.startedAt;
@@ -326,6 +317,11 @@ export class SubmissionService {
     });
 
     await this.judgeAll(code, startedAt, change?.result ?? []);
+
+    // judged elsewhere, or lost with an instance that died: judge again
+    const stuck = await this.waitForJudging(code, startedAt);
+
+    await this.judgeAll(code, startedAt, stuck);
   }
 
   /**
@@ -361,6 +357,49 @@ export class SubmissionService {
         });
       }
     }));
+  }
+
+  /**
+   * Wait until every submission of the round is judged, for a while.
+   *
+   * @param {string} code The room code.
+   * @param {number} startedAt The round to wait for.
+   *
+   * @returns {Promise<PendingSubmission[]>} What was still not judged
+   *                                         when the wait ran out.
+   */
+  private async waitForJudging(
+    code: string,
+    startedAt: number,
+  ): Promise<PendingSubmission[]> {
+
+    const deadline = Date.now() + this.options.judgeTimeoutMs;
+
+    for (;;) {
+      const room = await this.roomService.find(code);
+      const round = room?.round;
+
+      // room gone, or another round already
+      if (!round || round.startedAt !== startedAt) {
+        return [];
+      }
+
+      const pending: PendingSubmission[] = [];
+
+      for (const [playerId, result] of round.results) {
+        const draft = round.submissions.get(playerId);
+
+        if (result.submittedAt !== null && result.passed === null && draft) {
+          pending.push([playerId, draft, result.autoSubmitted]);
+        }
+      }
+
+      if (pending.length === 0 || Date.now() >= deadline) {
+        return pending;
+      }
+
+      await sleep(JUDGING_POLL_MS);
+    }
   }
 
   /**
@@ -491,35 +530,5 @@ export class SubmissionService {
     } finally {
       event.set({ executor_ms: Math.round(performance.now() - startedAt) });
     }
-  }
-
-  /**
-   * Keep track of a submission until it settles.
-   *
-   * @param {string} code The room code.
-   * @param {() => Promise<T>} task The submission.
-   *
-   * @returns {Promise<T>} Whatever the submission resolves to.
-   */
-  private track<T>(code: string, task: () => Promise<T>): Promise<T> {
-
-    const inFlight = this.judging.get(code) ?? new Set<Promise<unknown>>();
-    const promise = task();
-
-    inFlight.add(promise);
-    this.judging.set(code, inFlight);
-
-    // forget it once settled, and the room once nothing is left
-    const forget = (): void => {
-      inFlight.delete(promise);
-
-      if (inFlight.size === 0) {
-        this.judging.delete(code);
-      }
-    };
-
-    promise.then(forget, forget);
-
-    return promise;
   }
 }

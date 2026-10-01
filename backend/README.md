@@ -104,7 +104,8 @@ clients drop states that arrive late.
 
 Timers are polled by every instance and run by whichever claims them
 first. A claimed timer whose instance dies runs again elsewhere after a
-few minutes.
+few minutes. When a round ends, submissions still not judged, because
+their instance died, are judged again from the stored code.
 
 Keys expire 24 hours after their last change, in case nothing deletes
 them. Removing a challenge file breaks the rooms playing it.

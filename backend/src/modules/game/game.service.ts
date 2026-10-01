@@ -189,7 +189,7 @@ export class GameService {
       await this.scheduler.clear(ROUND_CLOCK_TASK, code);
 
       // time is up for everyone: submit what they have
-      await this.submissionService.submitDrafts(code);
+      await this.submissionService.closeRound(code);
 
       const change = await this.roomService.mutateIfExists(code, (room) => {
 
