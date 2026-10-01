@@ -126,8 +126,13 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
     new DraftStore(redis.client),
     options.executor
       ?? new PistonExecutor(config.pistonUrl, config.pistonTimeoutMs),
-    app.log,
-    options.maxConcurrentRuns ?? config.maxConcurrentRuns,
+    redis.client,
+    {
+      maxConcurrentRuns:
+        options.maxConcurrentRuns ?? config.maxConcurrentRuns,
+      judgeTimeoutMs,
+      logger: app.log,
+    },
   );
 
   const challengeService = options.challengeService

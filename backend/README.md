@@ -47,7 +47,7 @@ Read from the env or `.env`. Only `REDIS_URL` is required.
 | `LSP_SECRET` | unset | shared with the lsp service; unset turns autocomplete off |
 | `MAX_PLAYERS_PER_ROOM` / `MAX_ROOMS` | `20` / `1000` | room limits |
 | `MAX_CODE_LENGTH` | `64000` | characters per program |
-| `MAX_CONCURRENT_RUNS` | `16` | example runs at once, across all rooms |
+| `MAX_CONCURRENT_RUNS` | `16` | example runs at once, across all rooms and instances |
 | `EMPTY_ROOM_TTL_SECONDS` | `60` | how long an empty room lives |
 | `RECONNECT_GRACE_SECONDS` | `10` | how long a dropped player keeps their seat |
 | `LOG_LEVEL` | `debug` | lowest level logged; `info` hides draft saves |
