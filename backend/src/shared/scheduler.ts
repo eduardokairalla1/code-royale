@@ -18,15 +18,25 @@ const SEPARATOR = '|';
 // tasks claimed per poll
 const BATCH_SIZE = 50;
 
-// claim what is due: removed as it is taken, so only one instance runs it
+// claim what is due: push its deadline to the end of the lease, so a task
+// whose instance dies runs again elsewhere once the lease runs out
 const CLAIM_SCRIPT = `
 local due = redis.call(
-  'ZRANGEBYSCORE', KEYS[1], '-inf', ARGV[1], 'LIMIT', 0, ARGV[2]
+  'ZRANGEBYSCORE', KEYS[1], '-inf', ARGV[1], 'LIMIT', 0, ARGV[3]
 )
 for _, task in ipairs(due) do
-  redis.call('ZREM', KEYS[1], task)
+  redis.call('ZADD', KEYS[1], ARGV[2], task)
 end
 return due
+`;
+
+// forget a task once run, unless it was scheduled again meanwhile
+const DONE_SCRIPT = `
+local score = redis.call('ZSCORE', KEYS[1], ARGV[1])
+if score and tonumber(score) == tonumber(ARGV[2]) then
+  return redis.call('ZREM', KEYS[1], ARGV[1])
+end
+return 0
 `;
 
 // --- CODE ---
@@ -41,6 +51,8 @@ export type TaskHandler = (key: string) => Promise<void>;
 export interface SchedulerOptions {
   // how often due tasks are looked for
   pollMs: number;
+  // how long a claimed task may run before another instance retries it
+  leaseMs: number;
   logger: FastifyBaseLogger;
 }
 
@@ -60,7 +72,7 @@ export class Scheduler {
    * Create the scheduler, not polling yet.
    *
    * @param {RedisClient} redis The Redis client.
-   * @param {SchedulerOptions} options Poll interval and logger.
+   * @param {SchedulerOptions} options Poll interval, lease and logger.
    */
   constructor(
     private readonly redis: RedisClient,
@@ -164,13 +176,15 @@ export class Scheduler {
    */
   private async poll(): Promise<void> {
 
+    const leaseUntil = Date.now() + this.options.leaseMs;
+
     let due: string[];
 
     // redis away for a moment: try again on the next poll
     try {
       due = await this.redis.eval(CLAIM_SCRIPT, {
         keys: [SCHEDULE_KEY],
-        arguments: [String(Date.now()), String(BATCH_SIZE)],
+        arguments: [String(Date.now()), String(leaseUntil), String(BATCH_SIZE)],
       }) as string[];
 
     } catch (error) {
@@ -179,7 +193,7 @@ export class Scheduler {
     }
 
     for (const task of due) {
-      const running = this.runTask(task);
+      const running = this.runTask(task, leaseUntil);
 
       this.running.add(running);
       void running.finally(() => this.running.delete(running));
@@ -187,13 +201,14 @@ export class Scheduler {
   }
 
   /**
-   * Run one claimed task.
+   * Run one claimed task, then forget it.
    *
    * @param {string} task The task, kind and key.
+   * @param {number} leaseUntil The deadline it was claimed with.
    *
    * @returns {Promise<void>}
    */
-  private async runTask(task: string): Promise<void> {
+  private async runTask(task: string, leaseUntil: number): Promise<void> {
 
     const [kind, key] = fromTask(task);
     const handler = this.handlers.get(kind);
@@ -204,6 +219,17 @@ export class Scheduler {
       }
 
     // failed: logged, and not retried, like a timer that threw
+    } catch (error) {
+      this.logFailure(kind, key, error);
+    }
+
+    try {
+      await this.redis.eval(DONE_SCRIPT, {
+        keys: [SCHEDULE_KEY],
+        arguments: [task, String(leaseUntil)],
+      });
+
+    // left in place: retried once its lease runs out
     } catch (error) {
       this.logFailure(kind, key, error);
     }
