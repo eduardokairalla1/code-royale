@@ -156,6 +156,25 @@ services:
     networks:
       - edge
 
+  # --- data services ---
+  redis:
+    image: redis:8-alpine
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    volumes:
+      - ./configs/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+      - ./data/redis:/data
+    mem_limit: ${REDIS_MEMORY_LIMIT:-512m}
+    networks:
+      - state
+
+  # --- code execution ---
   piston:
     image: ghcr.io/engineer-man/piston@sha256:2f66b7456189c4d713aa986d98eccd0b6ee16d26c7ec5f21b30e942756fd127a
     platform: linux/amd64
@@ -193,4 +212,7 @@ networks:
   edge:
     driver: bridge
   internal:
+    driver: bridge
+  # only the backend and the lsp service reach redis
+  state:
     driver: bridge

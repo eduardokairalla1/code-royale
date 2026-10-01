@@ -1,6 +1,7 @@
 # Code Royale with Docker Compose
 
-Runs the whole game on one machine: frontend, backend, the lsp service and
+Runs the whole game on one machine: frontend, backend, the lsp service,
+Redis, and
 [Piston](https://github.com/engineer-man/piston), which runs player code.
 
 Every image is built from the source in this repo.
