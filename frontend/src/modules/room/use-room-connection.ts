@@ -8,6 +8,7 @@ import { ApiError } from '../../shared/errors.ts';
 import { isErrorBody } from '../../shared/errors.ts';
 import type { Room } from './room.types.ts';
 import type { Session } from './room.types.ts';
+import { latestRoom } from './room.version.ts';
 import { useCallback } from 'react';
 import { useEffect } from 'react';
 import { useRef } from 'react';
@@ -90,7 +91,7 @@ export function useRoomConnection(
 
     // every change of the room lands here
     socket.on('room:state', (next: Room) => {
-      setRoom(next);
+      setRoom((current) => latestRoom(current, next));
 
       if (next.round) {
         setClockOffset(next.round.serverNow - Date.now());

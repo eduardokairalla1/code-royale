@@ -40,6 +40,7 @@ const ROOM: Room = {
       autoSubmitted: false,
     }],
   },
+  version: 1,
 };
 
 // --- CODE ---

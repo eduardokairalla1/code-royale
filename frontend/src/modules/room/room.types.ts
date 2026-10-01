@@ -79,6 +79,8 @@ export interface Room {
   hostId: string;
   players: Player[];
   round: Round | null;
+  // bumped on every change; a lower one is a state that arrived late
+  version: number;
 }
 
 /**
