@@ -13,9 +13,13 @@ import type { CommandResponse } from '../../src/shared/socket-command.js';
 import { SOCKET_PATH } from '../../src/socket.js';
 import { FakeExecutor } from './fake-executor.js';
 import type { FastifyInstance } from 'fastify';
+import { randomUUID } from 'node:crypto';
+import { createClient } from 'redis';
 import { io } from 'socket.io-client';
 import type { Socket } from 'socket.io-client';
+import { afterAll } from 'vitest';
 import { afterEach } from 'vitest';
+import { beforeEach } from 'vitest';
 
 // --- GLOBALS ---
 const FIXTURES = new URL('../fixtures/challenges/', import.meta.url);
@@ -27,6 +31,12 @@ export const TEST_TIMINGS = {
   // fixture challenges last 2 seconds
   roundMs: 2000,
 };
+
+// every server of a test shares its keys, as instances of one deployment
+let keyPrefix = '';
+
+// cleans the keys up after each test
+const redis = createClient({ url: process.env.REDIS_URL as string });
 
 // everything opened by a test, closed after it
 const openServers: TestServer[] = [];
@@ -82,6 +92,15 @@ export async function startServer(
   openServers.push(server);
 
   return server;
+}
+
+/**
+ * The key prefix of the running test, shared by all of its servers.
+ *
+ * @returns {string} The prefix.
+ */
+export function testKeyPrefix(): string {
+  return keyPrefix;
 }
 
 /**
@@ -314,8 +333,29 @@ export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// close whatever each test opened
+// fresh keys for each test
+beforeEach(() => {
+  keyPrefix = `test:${randomUUID()}:`;
+});
+
+// close whatever each test opened, then drop its keys
 afterEach(async () => {
   openClients.splice(0).forEach((client) => client.socket.disconnect());
   await Promise.all(openServers.splice(0).map(({ app }) => app.close()));
+
+  if (!redis.isOpen) {
+    await redis.connect();
+  }
+
+  const keys = await redis.keys(`${keyPrefix}*`);
+
+  if (keys.length > 0) {
+    await redis.del(keys);
+  }
+});
+
+afterAll(async () => {
+  if (redis.isOpen) {
+    await redis.close();
+  }
 });

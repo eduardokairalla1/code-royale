@@ -26,6 +26,8 @@ npm run dev          # http://localhost:3000/api/health
 | `npm run typecheck` | typecheck the app and the tests |
 | `npm test` | unit and integration tests |
 
+The tests need Redis, on `REDIS_URL` or `redis://localhost:6379`. Each
+test uses keys of its own and deletes them after.
 `PISTON_URL=http://localhost:2000 npm test` also runs every language
 against a real Piston.
 
