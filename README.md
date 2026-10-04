@@ -18,6 +18,30 @@ good coding game to play in our spare time.
 
 Play it at **[coderoyale.app](https://coderoyale.app)**.
 
+![A match of Code Royale](docs/images/match.gif)
+
+## A match
+
+1. Create a room and share its code or link with your friends.
+2. The host picks the difficulties, easy, medium, hard or any mix, and
+   starts the round.
+3. Everyone gets the same challenge and the same clock. Write your
+   solution in Python, JavaScript, TypeScript, Go, Java, C, C++ or Rust,
+   with autocomplete, and run it against the examples as often as you
+   like.
+4. You submit once, against hidden tests. When time runs out, whatever is
+   in your editor is submitted for you.
+5. The most tests passed wins, the fastest submission breaks ties. Then
+   read everyone's code and play again.
+
+| Lobby | Playing |
+|---|---|
+| ![The lobby, with the players and the difficulty filter](docs/images/lobby.png) | ![The editor with autocomplete, next to the challenge](docs/images/playing.png) |
+
+| Results | Everyone's code |
+|---|---|
+| ![The podium and the ranking](docs/images/results.png) | ![Another player's submitted code](docs/images/code.png) |
+
 ## How it works
 
 ```
@@ -62,7 +86,7 @@ backend/       # game server; challenges/ holds the challenge files
 frontend/      # web client
 lsp/           # language server service
 deploy/        # compose files and Piston config
-docs/          # code guidelines
+docs/          # code guidelines and images
 .github/       # CI: tests, and images for Docker Hub
 VERSION        # release version, used in the image tags
 ```
