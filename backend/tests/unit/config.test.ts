@@ -17,7 +17,9 @@ import { vi } from 'vitest';
  *
  * @returns {Promise<any>} The parsed config.
  */
-async function loadConfig(env: Record<string, string>): Promise<any> {
+async function loadConfig(
+  env: Record<string, string | undefined>,
+): Promise<any> {
 
   vi.resetModules();
 
@@ -43,29 +45,48 @@ describe('config', () => {
       reconnectGraceMs: 10_000,
       maxPlayersPerRoom: 20,
       maxRooms: 1000,
+      challengesDir: undefined,
+      pistonTimeoutMs: 60_000,
+      maxCodeLength: 64_000,
+      maxConcurrentRuns: 16,
+      redisKeyPrefix: 'code-royale:',
     });
+    expect(config.enabledLanguages).toHaveLength(8);
   });
 
   it('splits comma separated lists, ignoring spaces and blanks', async () => {
     const config = await loadConfig({
       CORS_ORIGIN: 'https://a.com, https://b.br,,',
+      ENABLED_LANGUAGES: 'python , javascript',
     });
 
     expect(config.corsOrigins).toEqual(['https://a.com', 'https://b.br']);
+    expect(config.enabledLanguages).toEqual(['python', 'javascript']);
   });
 
   it('turns seconds into milliseconds', async () => {
     const config = await loadConfig({
       RECONNECT_GRACE_SECONDS: '30',
+      PISTON_TIMEOUT_SECONDS: '90',
     });
 
     expect(config.reconnectGraceMs).toBe(30_000);
+    expect(config.pistonTimeoutMs).toBe(90_000);
+  });
+
+  it('resolves the challenges directory to a url', async () => {
+    const config = await loadConfig({ CHALLENGES_DIR: '/srv/challenges' });
+
+    expect(String(config.challengesDir)).toBe('file:///srv/challenges/');
   });
 
   it.each([
+    [{ ENABLED_LANGUAGES: 'python,cobol' }, /Use only/],
     [{ LOG_LEVEL: 'verbose' }, /LOG_LEVEL/],
     [{ MAX_PLAYERS_PER_ROOM: '0' }, /MAX_PLAYERS_PER_ROOM/],
     [{ CORS_ORIGIN: ' , ' }, /CORS_ORIGIN/],
+    [{ REDIS_URL: undefined }, /REDIS_URL/],
+    [{ REDIS_URL: 'not a url' }, /REDIS_URL/],
   ])('refuses %j on boot', async (env, reason) => {
     await expect(loadConfig(env)).rejects.toThrow(reason);
   });

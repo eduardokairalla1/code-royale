@@ -1,0 +1,23 @@
+{
+  "id": "leap-year",
+  "title": "Leap year",
+  "description": "Read a year and print YES if it is a leap year, or NO otherwise. A year is a leap year if it is divisible by 4, except years divisible by 100, which are only leap years if they are also divisible by 400.\n\nConstraints: 1 ≤ year ≤ 10^5",
+  "difficulty": "easy",
+  "timeLimitSeconds": 300,
+  "examples": [
+    { "input": "2024", "output": "YES" },
+    { "input": "2023", "output": "NO" }
+  ],
+  "tests": [
+    { "input": "2000", "output": "YES" },
+    { "input": "1900", "output": "NO" },
+    { "input": "2100", "output": "NO" },
+    { "input": "2400", "output": "YES" },
+    { "input": "1", "output": "NO" },
+    { "input": "4", "output": "YES" },
+    { "input": "100", "output": "NO" },
+    { "input": "1996", "output": "YES" },
+    { "input": "99996", "output": "YES" },
+    { "input": "100000", "output": "YES" }
+  ]
+}

@@ -1,0 +1,231 @@
+# --- backend environment ---
+x-backend-env: &backend-env
+
+  # general
+  PORT: 3000
+  HOST: 0.0.0.0
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+
+  # security: where the frontend is served, comma separated
+  CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
+
+  # rooms
+  EMPTY_ROOM_TTL_SECONDS: ${EMPTY_ROOM_TTL_SECONDS:-60}
+  RECONNECT_GRACE_SECONDS: ${RECONNECT_GRACE_SECONDS:-10}
+  MAX_PLAYERS_PER_ROOM: ${MAX_PLAYERS_PER_ROOM:-20}
+  MAX_ROOMS: ${MAX_ROOMS:-1000}
+
+  # challenges: read from the mounted folder, not the copy in the image
+  CHALLENGES_DIR: /app/challenges-live
+
+  # code execution
+  PISTON_URL: http://piston:2000
+  PISTON_TIMEOUT_SECONDS: ${PISTON_TIMEOUT_SECONDS:-60}
+  MAX_CODE_LENGTH: ${MAX_CODE_LENGTH:-64000}
+  # example runs at once across every room: more would only queue in piston
+  MAX_CONCURRENT_RUNS: ${MAX_CONCURRENT_RUNS:-16}
+  ENABLED_LANGUAGES: ${ENABLED_LANGUAGES:-python,javascript,typescript,go,java,c,cpp,rust}
+
+  # editor language servers: signs the tickets the lsp service checks
+  LSP_SECRET: ${LSP_SECRET:?set LSP_SECRET in deploy/.env}
+
+  # rooms, rounds, timers and broadcasts, shared by every instance
+  REDIS_URL: redis://redis:6379
+
+# --- lsp environment ---
+x-lsp-env: &lsp-env
+
+  # general
+  PORT: 3001
+  LOG_LEVEL: ${LSP_LOG_LEVEL:-info}
+
+  # security: checks the tickets, and where browsers connect from
+  LSP_SECRET: ${LSP_SECRET:?set LSP_SECRET in deploy/.env}
+  CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
+
+  # each session is a 100 to 700 MB server: size it to LSP_MEMORY_LIMIT
+  MAX_SESSIONS: ${LSP_MAX_SESSIONS:-16}
+  MAX_SESSIONS_PER_PLAYER: ${LSP_MAX_SESSIONS_PER_PLAYER:-2}
+  IDLE_TIMEOUT_SECONDS: ${LSP_IDLE_TIMEOUT_SECONDS:-600}
+  ENABLED_LANGUAGES: ${ENABLED_LANGUAGES:-python,javascript,typescript,go,java,c,cpp,rust}
+
+  # spent tickets and sessions per player, shared by every instance
+  REDIS_URL: redis://redis:6379
+
+# --- piston environment ---
+x-piston-env: &piston-env
+
+  # general
+  PISTON_DISABLE_NETWORKING: "true"
+
+  # limits per run, in ms and bytes
+  PISTON_RUN_TIMEOUT: ${PISTON_RUN_TIMEOUT:-3000}
+  PISTON_RUN_CPU_TIME: ${PISTON_RUN_CPU_TIME:-3000}
+  PISTON_COMPILE_TIMEOUT: ${PISTON_COMPILE_TIMEOUT:-20000}
+  PISTON_COMPILE_CPU_TIME: ${PISTON_COMPILE_CPU_TIME:-20000}
+
+  # NOTE: sized for the JVM; the default, -1, is no limit
+  PISTON_RUN_MEMORY_LIMIT: ${PISTON_RUN_MEMORY_LIMIT:-512000000}
+  PISTON_COMPILE_MEMORY_LIMIT: ${PISTON_COMPILE_MEMORY_LIMIT:-1024000000}
+
+  # stdout/stderr cap per run, in characters
+  PISTON_OUTPUT_MAX_SIZE: ${PISTON_OUTPUT_MAX_SIZE:-65536}
+
+  # runs at once; the rest wait in piston's queue
+  PISTON_MAX_CONCURRENT_JOBS: ${PISTON_MAX_CONCURRENT_JOBS:-8}
+
+  # NOTE: go needs more than 64 processes; the rest stays capped
+  PISTON_LIMIT_OVERRIDES: '{"go":{"max_process_count":128}}'
+
+# --- code-royale Docker Compose ---
+name: code-royale
+
+services:
+
+  # --- frontend service ---
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${PUBLIC_API_URL:-http://localhost:3000}
+        VITE_LSP_URL: ${PUBLIC_LSP_URL:-ws://localhost:3001}
+    image: code-royale-frontend:local
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    networks:
+      - edge
+
+  # --- backend services ---
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    image: code-royale-backend:local
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    environment: *backend-env
+    volumes:
+      - ../backend/challenges:/app/challenges-live:ro
+    depends_on:
+      piston:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    networks:
+      - edge
+      - internal
+      - state
+
+  lsp:
+    build:
+      context: ../lsp
+      dockerfile: Dockerfile
+    image: code-royale-lsp:local
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3001/lsp/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    environment: *lsp-env
+    read_only: true
+    init: true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETUID
+      - SETGID
+      - KILL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=2g,mode=1777
+    mem_limit: ${LSP_MEMORY_LIMIT:-8g}
+    pids_limit: 2048
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
+    networks:
+      - edge
+      - state
+
+  # --- data services ---
+  redis:
+    image: redis:8-alpine
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    volumes:
+      - ./configs/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+      - ./data/redis:/data
+    mem_limit: ${REDIS_MEMORY_LIMIT:-512m}
+    networks:
+      - state
+
+  # --- code execution ---
+  piston:
+    image: ghcr.io/engineer-man/piston@sha256:2f66b7456189c4d713aa986d98eccd0b6ee16d26c7ec5f21b30e942756fd127a
+    platform: linux/amd64
+    privileged: true
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/2000'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    environment: *piston-env
+    volumes:
+      - ./data/piston/packages:/piston/packages
+    tmpfs:
+      - /tmp:exec
+    networks:
+      - internal
+
+  piston-packages:
+    image: curlimages/curl:8.16.0
+    entrypoint: ["sh", "/install-packages.sh"]
+    restart: "no"
+    volumes:
+      - ./configs/piston/install-packages.sh:/install-packages.sh:ro
+      - ./configs/piston/packages.txt:/packages.txt:ro
+    depends_on:
+      piston:
+        condition: service_healthy
+    networks:
+      - internal
+
+# --- networks ---
+networks:
+  edge:
+    driver: bridge
+  internal:
+    driver: bridge
+  # only the backend and the lsp service reach redis
+  state:
+    driver: bridge

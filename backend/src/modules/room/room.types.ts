@@ -2,6 +2,10 @@
  * Room and player types.
  */
 
+// --- IMPORTS ---
+import type { PublicRound } from '../game/game.types.js';
+import type { Round } from '../game/game.types.js';
+
 // --- CODE ---
 /**
  * Room lifecycle: the room outlives rounds and loops back to LOBBY.
@@ -27,7 +31,10 @@ export interface Room {
   hostId: string;
   status: RoomStatus;
   players: Map<string, Player>;
+  round: Round | null;
+  playedChallengeIds: string[];
   createdAt: number;
+  version: number;
 }
 
 /**
@@ -48,4 +55,6 @@ export interface PublicRoom {
   status: RoomStatus;
   hostId: string;
   players: PublicPlayer[];
+  round: PublicRound | null;
+  version: number;
 }

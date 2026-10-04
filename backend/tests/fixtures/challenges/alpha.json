@@ -1,0 +1,16 @@
+{
+  "id": "alpha",
+  "title": "Sum alpha",
+  "description": "Read two integers and print their sum.",
+  "difficulty": "easy",
+  "timeLimitSeconds": 2,
+  "examples": [
+    { "input": "2 5", "output": "7" }
+  ],
+  "tests": [
+    { "input": "2 5", "output": "7" },
+    { "input": "100 230", "output": "330" },
+    { "input": "-5 2", "output": "-3" },
+    { "input": "999999 1", "output": "1000000" }
+  ]
+}

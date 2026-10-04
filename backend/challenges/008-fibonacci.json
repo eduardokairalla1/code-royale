@@ -1,0 +1,22 @@
+{
+  "id": "fibonacci",
+  "title": "Fibonacci",
+  "description": "The Fibonacci sequence starts with F(0) = 0 and F(1) = 1, and every next term is the sum of the two before it. Read N and print F(N).\n\nConstraints: 0 ≤ N ≤ 78",
+  "difficulty": "easy",
+  "timeLimitSeconds": 300,
+  "examples": [
+    { "input": "6", "output": "8" },
+    { "input": "10", "output": "55" }
+  ],
+  "tests": [
+    { "input": "0", "output": "0" },
+    { "input": "1", "output": "1" },
+    { "input": "2", "output": "1" },
+    { "input": "20", "output": "6765" },
+    { "input": "46", "output": "1836311903" },
+    { "input": "47", "output": "2971215073" },
+    { "input": "60", "output": "1548008755920" },
+    { "input": "77", "output": "5527939700884757" },
+    { "input": "78", "output": "8944394323791464" }
+  ]
+}

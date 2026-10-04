@@ -1,0 +1,17 @@
+.mark {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  fill: none;
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mark[data-passed='true'] {
+  stroke: var(--success);
+}
+
+.mark[data-passed='false'] {
+  stroke: var(--danger);
+}

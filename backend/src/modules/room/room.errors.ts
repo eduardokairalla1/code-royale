@@ -16,15 +16,6 @@ export class RoomNotFoundError extends AppError {
 }
 
 /**
- * Raised when joining a room whose game is running.
- */
-export class RoomInGameError extends AppError {
-  static override readonly MESSAGE = 'The game has already started!';
-  static override readonly STATUS_CODE = 409;
-  static override readonly LOG_LEVEL = 'warn';
-}
-
-/**
  * Raised when joining a room that reached the player limit.
  */
 export class RoomFullError extends AppError {
@@ -55,5 +46,14 @@ export class RoomCodeGenerationError extends AppError {
 export class InvalidPlayerTokenError extends AppError {
   static override readonly MESSAGE = 'Invalid player token!';
   static override readonly STATUS_CODE = 401;
+  static override readonly LOG_LEVEL = 'warn';
+}
+
+/**
+ * Raised when someone other than the host tries a host-only action.
+ */
+export class NotHostError extends AppError {
+  static override readonly MESSAGE = 'Only the host can do this!';
+  static override readonly STATUS_CODE = 403;
   static override readonly LOG_LEVEL = 'warn';
 }

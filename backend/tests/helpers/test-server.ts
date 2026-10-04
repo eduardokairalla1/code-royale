@@ -5,20 +5,40 @@
 // --- IMPORTS ---
 import type { AppOptions } from '../../src/app.js';
 import { buildApp } from '../../src/app.js';
+import {
+  ChallengeService,
+} from '../../src/modules/challenge/challenge.service.js';
 import type { PublicRoom } from '../../src/modules/room/room.types.js';
 import type { CommandResponse } from '../../src/shared/socket-command.js';
 import { SOCKET_PATH } from '../../src/socket.js';
+import { FakeExecutor } from './fake-executor.js';
 import type { FastifyInstance } from 'fastify';
+import { randomUUID } from 'node:crypto';
+import { createClient } from 'redis';
 import { io } from 'socket.io-client';
 import type { Socket } from 'socket.io-client';
+import { afterAll } from 'vitest';
 import { afterEach } from 'vitest';
+import { beforeEach } from 'vitest';
 
 // --- GLOBALS ---
+const FIXTURES = new URL('../fixtures/challenges/', import.meta.url);
+
 // short timers, so tests do not wait for the production ones
 export const TEST_TIMINGS = {
   emptyRoomTtlMs: 600,
   reconnectGraceMs: 300,
+  // fixture challenges last 2 seconds
+  roundMs: 2000,
+  schedulerPollMs: 20,
+  judgeTimeoutMs: 2000,
 };
+
+// every server of a test shares its keys, as instances of one deployment
+let keyPrefix = '';
+
+// cleans the keys up after each test
+const redis = createClient({ url: process.env.REDIS_URL as string });
 
 // everything opened by a test, closed after it
 const openServers: TestServer[] = [];
@@ -35,15 +55,16 @@ export interface Identity {
 }
 
 /**
- * A running server.
+ * A running server and the fake sandbox behind it.
  */
 export interface TestServer {
   app: FastifyInstance;
   url: string;
+  executor: FakeExecutor;
 }
 
 /**
- * Start a server without logs.
+ * Start a server with fake execution, fixture challenges, short timers.
  *
  * @param {AppOptions} options Overrides for the test defaults.
  *
@@ -53,10 +74,17 @@ export async function startServer(
   options: AppOptions = {},
 ): Promise<TestServer> {
 
+  const executor = new FakeExecutor();
+
   const app = buildApp({
     logger: false,
+    executor,
+    challengeService: ChallengeService.load(FIXTURES),
     emptyRoomTtlMs: TEST_TIMINGS.emptyRoomTtlMs,
     reconnectGraceMs: TEST_TIMINGS.reconnectGraceMs,
+    schedulerPollMs: TEST_TIMINGS.schedulerPollMs,
+    judgeTimeoutMs: TEST_TIMINGS.judgeTimeoutMs,
+    redisKeyPrefix: keyPrefix,
     ...options,
   });
 
@@ -64,11 +92,20 @@ export async function startServer(
 
   const address = app.server.address();
   const port = typeof address === 'object' && address ? address.port : 0;
-  const server = { app, url: `http://127.0.0.1:${port}` };
+  const server = { app, url: `http://127.0.0.1:${port}`, executor };
 
   openServers.push(server);
 
   return server;
+}
+
+/**
+ * The key prefix of the running test, shared by all of its servers.
+ *
+ * @returns {string} The prefix.
+ */
+export function testKeyPrefix(): string {
+  return keyPrefix;
 }
 
 /**
@@ -301,8 +338,29 @@ export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// close whatever each test opened
+// fresh keys for each test
+beforeEach(() => {
+  keyPrefix = `test:${randomUUID()}:`;
+});
+
+// close whatever each test opened, then drop its keys
 afterEach(async () => {
   openClients.splice(0).forEach((client) => client.socket.disconnect());
   await Promise.all(openServers.splice(0).map(({ app }) => app.close()));
+
+  if (!redis.isOpen) {
+    await redis.connect();
+  }
+
+  const keys = await redis.keys(`${keyPrefix}*`);
+
+  if (keys.length > 0) {
+    await redis.del(keys);
+  }
+});
+
+afterAll(async () => {
+  if (redis.isOpen) {
+    await redis.close();
+  }
 });

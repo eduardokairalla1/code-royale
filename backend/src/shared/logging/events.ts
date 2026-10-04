@@ -31,6 +31,23 @@ export const Event = {
   HostChanged: 'host_changed',
   RoomDeleted: 'room_deleted',
 
+  // rounds
+  RoundStarted: 'round_started',
+  RoundFinished: 'round_finished',
+  RoundFinishFailed: 'round_finish_failed',
+  RoundRestarted: 'round_restarted',
+
+  // code runs
+  ExamplesRun: 'examples_run',
+  SubmissionJudged: 'submission_judged',
+
+  // language servers
+  TicketIssued: 'ticket_issued',
+
+  // redis: lost, and back; the clients reconnect on their own
+  RedisDown: 'redis_down',
+  RedisUp: 'redis_up',
+
   TimerFailed: 'timer_failed',
 } as const;
 

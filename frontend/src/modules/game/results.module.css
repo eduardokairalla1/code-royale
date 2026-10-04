@@ -1,0 +1,212 @@
+.results {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.header {
+  text-align: center;
+}
+
+.kicker {
+  font-family: var(--font-hand);
+  font-size: 22px;
+  color: var(--ink-soft);
+}
+
+.title {
+  font-size: clamp(32px, 7vw, 48px);
+  line-height: 1.1;
+}
+
+.podium {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 480px;
+  padding-top: 70px;
+}
+
+.step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.crown {
+  position: absolute;
+  top: -64px;
+  width: 64px;
+  filter: drop-shadow(3px 3px 0 var(--ink));
+}
+
+.stepName {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-hand);
+  font-size: 22px;
+}
+
+.stepScore {
+  font-family: var(--font-display);
+  font-size: 22px;
+}
+
+.block {
+  position: relative;
+  width: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.place {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-display);
+  font-size: 44px;
+}
+
+.own {
+  width: 100%;
+}
+
+.ownContent {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.ownPosition {
+  padding: 0 var(--space-2);
+  font-family: var(--font-display);
+  font-size: 48px;
+  line-height: 1;
+}
+
+.ownMessage {
+  font-family: var(--font-display);
+  font-size: 26px;
+  line-height: 1.2;
+}
+
+.ownDetails {
+  font-family: var(--font-hand);
+  font-size: 19px;
+  color: var(--ink-soft);
+}
+
+.ranking {
+  width: 100%;
+}
+
+.rankingTitle {
+  margin-bottom: var(--space-3);
+  font-size: 26px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 4px 10px 6px;
+  border-bottom: 2px dashed rgba(26, 26, 26, 0.18);
+  font-family: var(--font-hand);
+  font-size: 20px;
+}
+
+.row[data-self='true'] {
+  background: rgba(255, 213, 74, 0.45);
+  border-radius: 6px;
+}
+
+.position {
+  min-width: 1.4em;
+  font-family: var(--font-display);
+  font-size: 22px;
+  text-align: center;
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.badge {
+  padding: 0 8px 2px;
+  font-size: 15px;
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  background: var(--crown);
+  rotate: -3deg;
+}
+
+.time {
+  font-family: var(--font-code);
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.score {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  font-family: var(--font-display);
+  font-size: 20px;
+}
+
+.score small {
+  font-family: var(--font-hand);
+  font-size: 15px;
+  color: var(--ink-soft);
+}
+
+/* a smaller button, to fit the ranking row */
+.viewCode > span[data-sketch-face] {
+  padding: 2px 12px 4px;
+  font-size: 17px;
+}
+
+.missing {
+  color: var(--ink-soft);
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.waiting {
+  font-family: var(--font-hand);
+  font-size: 24px;
+  color: var(--ink-soft);
+}
+
+.error {
+  font-family: var(--font-hand);
+  font-size: 19px;
+  color: var(--danger);
+}

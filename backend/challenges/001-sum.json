@@ -1,0 +1,23 @@
+{
+  "id": "sum",
+  "title": "Sum",
+  "description": "Read two integers from a single line and print their sum.\n\nConstraints: -10^9 ≤ A, B ≤ 10^9",
+  "difficulty": "easy",
+  "timeLimitSeconds": 900,
+  "examples": [
+    { "input": "2 5", "output": "7" },
+    { "input": "-5 2", "output": "-3" },
+    { "input": "0 0", "output": "0" }
+  ],
+  "tests": [
+    { "input": "100 230", "output": "330" },
+    { "input": "-7 -8", "output": "-15" },
+    { "input": "-1000 1000", "output": "0" },
+    { "input": "999999 1", "output": "1000000" },
+    { "input": "0 -42", "output": "-42" },
+    { "input": "123456789 987654321", "output": "1111111110" },
+    { "input": "1000000000 1000000000", "output": "2000000000" },
+    { "input": "-1000000000 -1000000000", "output": "-2000000000" },
+    { "input": "1000000000 -1", "output": "999999999" }
+  ]
+}

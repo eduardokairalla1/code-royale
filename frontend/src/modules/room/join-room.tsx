@@ -141,6 +141,12 @@ export function JoinRoom({ code, onJoined }: JoinRoomProps) {
               </p>
             </div>
 
+            {room?.status === 'PLAYING' && (
+              <p className={styles.warning}>
+                Match in progress: you join the next round.
+              </p>
+            )}
+
             <TextField
               label="Your name"
               placeholder="Gabriel"

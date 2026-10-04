@@ -1,0 +1,21 @@
+{
+  "id": "caesar-cipher",
+  "title": "Caesar cipher",
+  "description": "The first line has a shift K. The second line has a text made of lowercase letters and spaces. Print the text with every letter shifted K positions forward in the alphabet, wrapping from z back to a. Spaces stay as they are.\n\nConstraints: 0 ≤ K ≤ 1000, 1 ≤ length ≤ 1000",
+  "difficulty": "medium",
+  "timeLimitSeconds": 600,
+  "examples": [
+    { "input": "3\nhello world", "output": "khoor zruog" },
+    { "input": "1\nxyz", "output": "yza" }
+  ],
+  "tests": [
+    { "input": "0\nabc", "output": "abc" },
+    { "input": "26\nabc", "output": "abc" },
+    { "input": "25\nabc", "output": "zab" },
+    { "input": "27\nzzz", "output": "aaa" },
+    { "input": "1000\ncode royale", "output": "oapq dakmxq" },
+    { "input": "13\nthe quick brown fox jumps over the lazy dog", "output": "gur dhvpx oebja sbk whzcf bire gur ynml qbt" },
+    { "input": "5\na b c", "output": "f g h" },
+    { "input": "7\nzba axyycaxbx baxax xxzcbzc x xz czaacxx bzzaacc bz bzycxcb yzxy bbyaxx zxbyycba bacbccc azaazabc bxaxzbcc aba azybbbbba xaxzcca yx cyxabzyzc a ybzbz zyyyzxxxx caxa xc xzzbyxyaa ybcxcx y byczcz zz bzxcay xaab zybb x ax czcxbxx b zaxay c zy bczy xcy cx bzycbczxx xycybzca czax za yczyxyaac czxacbbcb zacabxzz cycca zycac ybabb z zbyb xzz zyxcxyx xyza bb baxaxc zcczycy cz xyacyybxc xybzbcz caxayaaa ayb ac c bzz azxzccx cb bzb ycxcccxy zazycxb bayzcbzy acayxax acz zccaxzz aza zcy zb yazaabcyb yycaz y xbyycz zzzzzazb ay zzzcyzxz zccc cycxcza ccc xybzcbccx bacx zcbaba yzyyyxaba bz xa yxzyyy by yzcabca xz acaaa zcyybcc y abcyzb xzccaz ccxzxb ccyy caza ccxcbz zbbc xaaczba c xax bycyx zz cxxxa bzzazbzz xc xyx c yaa czb aczcazbc caxzcb ybc yzybxyyca zbb ac zzyyzyac bxcxaabc zazaxbca za za bayxbba yccb xcca axayxza azacyzxc ycaxaa ayayzxbbb ccbzcza zyzb ccxycbx yyyzac cxaz ayxb bxzxaaz xb axyaxcy zzyxax c yazcy aybcbbcbz cbxyczc a aayzczby yazczb azacyx azcbbyxxc byyy cxbb z xbxc x yzxz bczxbca yy", "output": "gih heffjheie ihehe eegjigj e eg jghhjee igghhjj ig igfjeji fgef iifhee geiffjih ihjijjj hghhghij iehegijj hih hgfiiiiih ehegjjh fe jfehigfgj h figig gfffgeeee jheh ej eggifefhh fijeje f ifjgjg gg igejhf ehhi gfii e he jgjeiee i ghehf j gf ijgf ejf je igfjijgee efjfigjh jghe gh fjgfefhhj jgehjiiji ghjhiegg jfjjh gfjhj fihii g gifi egg gfejefe efgh ii ihehej gjjgfjf jg efhjffiej efigijg jhehfhhh hfi hj j igg hgegjje ji igi fjejjjef ghgfjei ihfgjigf hjhfehe hjg gjjhegg hgh gjf gi fhghhijfi ffjhg f eiffjg ggggghgi hf gggjfgeg gjjj jfjejgh jjj efigjijje ihje gjihih fgfffehih ig eh fegfff if fgjhijh eg hjhhh gjffijj f hijfgi egjjhg jjegei jjff jhgh jjejig giij ehhjgih j ehe ifjfe gg jeeeh igghgigg ej efe j fhh jgi hjgjhgij jhegji fij fgfieffjh gii hj ggffgfhj iejehhij ghgheijh gh gh ihfeiih fjji ejjh hehfegh hghjfgej fjhehh hfhfgeiii jjigjgh gfgi jjefjie fffghj jehg hfei iegehhg ei hefhejf ggfehe j fhgjf hfijiijig jiefjgj h hhfgjgif fhgjgi hghjfe hgjiifeej ifff jeii g eiej e fgeg ijgeijh ff" }
+  ]
+}

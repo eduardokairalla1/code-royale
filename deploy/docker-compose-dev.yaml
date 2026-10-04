@@ -1,0 +1,24 @@
+# How to use:
+#   docker compose -f docker-compose.yaml -f docker-compose-dev.yaml up -d
+
+# --- Development overlay ---
+services:
+
+  backend:
+    profiles: ["disabled"]
+
+  frontend:
+    profiles: ["disabled"]
+
+  lsp:
+    profiles: ["disabled"]
+
+  # reachable from the host, for the backend running outside docker
+  piston:
+    ports:
+      - "127.0.0.1:2000:2000"
+
+  # reachable from the host, for the backend and lsp running outside docker
+  redis:
+    ports:
+      - "127.0.0.1:6379:6379"

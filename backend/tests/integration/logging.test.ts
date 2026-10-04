@@ -3,6 +3,7 @@
  */
 
 // --- IMPORTS ---
+import { PROGRAMS } from '../helpers/fake-executor.js';
 import { createRoom } from '../helpers/test-server.js';
 import { request } from '../helpers/test-server.js';
 import { sleep } from '../helpers/test-server.js';
@@ -85,12 +86,20 @@ class LogLines {
 /**
  * Start a server whose logs the test reads.
  *
+ * @param {object} options Extra app options.
+ *
  * @returns {Promise<{ server: TestServer, logs: LogLines }>} Both.
  */
-async function startLogged(): Promise<{ server: TestServer; logs: LogLines }> {
+async function startLogged(
+  options: { lspSecret?: string } = {},
+): Promise<{ server: TestServer; logs: LogLines }> {
 
   const logs = new LogLines();
-  const server = await startServer({ logger: true, logStream: logs });
+  const server = await startServer({
+    logger: true,
+    logStream: logs,
+    ...options,
+  });
 
   return { server, logs };
 }
@@ -103,6 +112,14 @@ describe('logging', () => {
     const host = await createRoom(server, 'Host');
     const client = await TestClient.join(server, host);
     const ids = { room_code: host.code, player_id: host.playerId };
+
+    await client.emit('game:start');
+    await client.emit('submission:submit', {
+      language: 'python',
+      code: PROGRAMS.sum,
+    });
+    await logs.find('round_finished', { reason: 'everyone_judged' });
+    await client.emit('room:leave');
 
     // every line says which build wrote it
     expect(await logs.find('started')).toMatchObject({
@@ -122,21 +139,38 @@ describe('logging', () => {
 
     await logs.find('room_created', ids);
     await logs.find('socket_connected', ids);
+    await logs.find('command', { ...ids, command: 'game:start' });
+    expect(await logs.find('round_started', ids)).toMatchObject({
+      challenge_id: expect.any(String),
+      players: 1,
+    });
 
-    await client.emit('room:leave');
+    expect(await logs.find('submission_judged', ids)).toMatchObject({
+      auto: false,
+      passed: 4,
+      total: 4,
+      verdict: 'ACCEPTED',
+      statuses: { OK: 4 },
+      recorded: true,
+      executor_ms: expect.any(Number),
+    });
 
-    await logs.find('command', { ...ids, command: 'room:leave' });
+    expect(await logs.find('round_finished', {
+      room_code: host.code,
+    })).toMatchObject({ players: 1, submitted: 1, solved: 1, missing: 0 });
+
     await logs.find('player_left', { ...ids, reason: 'leave' });
     await logs.find('room_deleted', { room_code: host.code, reason: 'empty' });
 
     expect(await logs.find('socket', ids)).toMatchObject({
       closed_by: 'leave',
-      commands: 1,
+      commands: 3,
       duration_ms: expect.any(Number),
     });
 
-    // the token never reaches the logs
+    // the token and the code never reach the logs
     expect(logs.raw.join('\n')).not.toContain(host.token);
+    expect(logs.all('submission_judged')[0]).not.toHaveProperty('code');
   });
 
   it('skips the health check and logs unknown routes as info', async () => {
@@ -154,10 +188,30 @@ describe('logging', () => {
     expect(logs.raw.join('\n')).not.toContain('secret=1');
   });
 
-  it('logs a refused socket with why', async () => {
+  it('logs a failure at its level, with why', async () => {
     const { server, logs } = await startLogged();
 
     const host = await createRoom(server, 'Host');
+    const client = await TestClient.join(server, host);
+
+    await client.emit('game:start');
+    await client.emit('submission:submit', {
+      language: 'python',
+      code: PROGRAMS.unavailable,
+    });
+
+    expect(await logs.find('command', {
+      command: 'submission:submit',
+    })).toMatchObject({
+      level: 'ERROR',
+      outcome: 'error',
+      error: 'executor_unavailable_error',
+    });
+
+    expect(await logs.find('submission_judged')).toMatchObject({
+      level: 'ERROR',
+      outcome: 'error',
+    });
 
     // a bad token is refused before any connection
     await TestClient.connect(server, { roomCode: host.code, token: 'nope' });
@@ -166,5 +220,29 @@ describe('logging', () => {
       level: 'WARN',
       error: 'invalid_player_token_error',
     });
+  });
+
+  it('logs the ticket id the lsp service logs too', async () => {
+    const secret = 'test-secret-test-secret-test-secret';
+    const { server, logs } = await startLogged({ lspSecret: secret });
+
+    const host = await createRoom(server, 'Host');
+    const client = await TestClient.join(server, host);
+
+    await client.emit('game:start');
+    const response = await client.emit('lsp:ticket', { language: 'python' });
+
+    const [payload = ''] = response.data.ticket.split('.');
+    const claims = JSON.parse(Buffer.from(payload, 'base64url').toString());
+
+    expect(await logs.find('ticket_issued')).toMatchObject({
+      room_code: host.code,
+      player_id: host.playerId,
+      language: 'python',
+      ticket_id: claims.jti,
+    });
+
+    // the signed ticket itself stays out
+    expect(logs.raw.join('\n')).not.toContain(response.data.ticket);
   });
 });

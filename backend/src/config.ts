@@ -3,10 +3,15 @@
  */
 
 // --- IMPORTS ---
+import { LANGUAGES } from './modules/language/language.catalog.js';
 import { config as loadEnv } from 'dotenv';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { z } from 'zod';
 
 // --- GLOBALS ---
+const LANGUAGE_IDS = LANGUAGES.map((language) => language.id);
+
 // "a, b,,c" -> ["a", "b", "c"]
 const commaList = z.string().transform((value) => {
   return value.split(',').map((item) => item.trim()).filter(Boolean);
@@ -36,6 +41,33 @@ const envSchema = z.object({
   RECONNECT_GRACE_SECONDS: z.coerce.number().int().positive().default(10),
   MAX_PLAYERS_PER_ROOM: z.coerce.number().int().positive().default(20),
   MAX_ROOMS: z.coerce.number().int().positive().default(1000),
+
+  // challenges: backend/challenges when unset
+  CHALLENGES_DIR: z.string().min(1).optional(),
+
+  // code execution
+  PISTON_URL: z.url().default('http://localhost:2000'),
+  PISTON_TIMEOUT_SECONDS: z.coerce.number().int().positive().default(60),
+  MAX_CODE_LENGTH: z.coerce.number().int().positive().default(64_000),
+  // example runs at once across every room; submissions are never capped
+  MAX_CONCURRENT_RUNS: z.coerce.number().int().positive().default(16),
+
+  // languages players may pick, comma separated; all of them when unset
+  ENABLED_LANGUAGES: commaList
+    .pipe(z.array(z.string()).min(1))
+    .refine((ids) => ids.every((id) => LANGUAGE_IDS.includes(id)), {
+      message: `Use only: ${LANGUAGE_IDS.join(', ')}`,
+    })
+    .default(LANGUAGE_IDS),
+
+  // rooms, rounds and timers, shared by every instance of the backend
+  REDIS_URL: z.url(),
+  // prepended to every key, so other apps can share the same Redis
+  REDIS_KEY_PREFIX: z.string().default('code-royale:'),
+
+  // signs the tickets for the lsp service; unset turns autocomplete off
+  LSP_SECRET: z.string().min(32).optional(),
+  LSP_TICKET_TTL_SECONDS: z.coerce.number().int().positive().default(60),
 });
 
 // load the .env file into process.env before reading anything
@@ -56,6 +88,16 @@ export const config = {
   reconnectGraceMs: env.RECONNECT_GRACE_SECONDS * 1000,
   maxPlayersPerRoom: env.MAX_PLAYERS_PER_ROOM,
   maxRooms: env.MAX_ROOMS,
+  challengesDir: toDirectoryUrl(env.CHALLENGES_DIR),
+  pistonUrl: env.PISTON_URL,
+  pistonTimeoutMs: env.PISTON_TIMEOUT_SECONDS * 1000,
+  maxCodeLength: env.MAX_CODE_LENGTH,
+  maxConcurrentRuns: env.MAX_CONCURRENT_RUNS,
+  enabledLanguages: env.ENABLED_LANGUAGES,
+  redisUrl: env.REDIS_URL,
+  redisKeyPrefix: env.REDIS_KEY_PREFIX,
+  lspSecret: env.LSP_SECRET,
+  lspTicketTtlMs: env.LSP_TICKET_TTL_SECONDS * 1000,
 };
 
 // --- CODE ---
@@ -76,4 +118,21 @@ function parseEnv(): z.infer<typeof envSchema> {
   }
 
   return result.data;
+}
+
+/**
+ * Turn a directory path, relative or absolute, into a file url.
+ *
+ * @param {string | undefined} path The directory, if set.
+ *
+ * @returns {URL | undefined} The directory url, ending in a slash.
+ */
+function toDirectoryUrl(path: string | undefined): URL | undefined {
+
+  // unset: the default applies
+  if (path === undefined) {
+    return undefined;
+  }
+
+  return pathToFileURL(`${resolve(path)}/`);
 }

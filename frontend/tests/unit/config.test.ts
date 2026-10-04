@@ -1,5 +1,5 @@
 /**
- * Env vars: defaults, empty values and the backend's prefix.
+ * Env vars: defaults, empty values and the services' prefixes.
  */
 
 // --- IMPORTS ---
@@ -33,36 +33,59 @@ async function loadConfig(
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
 });
 
 describe('config', () => {
 
   it('falls back to the page\'s own origin', async () => {
+    vi.stubGlobal('location', { protocol: 'https:', host: 'example.com' });
+
     const config = await loadConfig({});
 
     expect(config).toEqual({
       apiUrl: '/api',
       socketOrigin: undefined,
       socketPath: '/api/socket',
+      lspUrl: 'wss://example.com/lsp',
     });
   });
 
-  it('treats empty vars as unset, as a left out build arg', async () => {
-    const config = await loadConfig({ VITE_API_URL: '' });
+  it('reaches the lsp service over plain websockets on http', async () => {
+    vi.stubGlobal('location', { protocol: 'http:', host: 'localhost:8080' });
 
-    expect(config.apiUrl).toBe('/api');
+    const config = await loadConfig({});
+
+    expect(config.lspUrl).toBe('ws://localhost:8080/lsp');
   });
 
-  it('reaches the backend elsewhere by its origin', async () => {
+  it('treats empty vars as unset, as a left out build arg', async () => {
+    vi.stubGlobal('location', { protocol: 'https:', host: 'example.com' });
+
+    const config = await loadConfig({ VITE_API_URL: '', VITE_LSP_URL: '' });
+
+    expect(config.apiUrl).toBe('/api');
+    expect(config.lspUrl).toBe('wss://example.com/lsp');
+  });
+
+  it('reaches services elsewhere by their origin', async () => {
     const config = await loadConfig({
       VITE_API_URL: 'http://localhost:3000/',
+      VITE_LSP_URL: 'ws://localhost:3001',
     });
 
     expect(config).toEqual({
       apiUrl: 'http://localhost:3000/api',
       socketOrigin: 'http://localhost:3000',
       socketPath: '/api/socket',
+      lspUrl: 'ws://localhost:3001/lsp',
     });
+  });
+
+  it('turns autocomplete off', async () => {
+    const config = await loadConfig({ VITE_LSP_URL: 'off' });
+
+    expect(config.lspUrl).toBeNull();
   });
 
   it('refuses a value that is not a url', async () => {

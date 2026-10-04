@@ -38,6 +38,13 @@ export interface ServerToClientEvents {
  */
 export interface ClientToServerEvents {
   'room:leave': (ack?: CommandAck) => void;
+  'game:start': (ack?: CommandAck) => void;
+  'game:restart': (ack?: CommandAck) => void;
+  'submission:run': (payload: unknown, ack?: CommandAck) => void;
+  'submission:draft': (payload: unknown, ack?: CommandAck) => void;
+  'submission:submit': (payload: unknown, ack?: CommandAck) => void;
+  'submission:code': (payload: unknown, ack?: CommandAck) => void;
+  'lsp:ticket': (payload: unknown, ack?: CommandAck) => void;
 }
 
 /**
@@ -89,7 +96,8 @@ export function createSocketServer(app: FastifyInstance): AppServer {
       socket.data.event?.set({ closed_by: 'shutdown' });
     }
 
-    io.disconnectSockets(true);
+    // this instance's sockets only: the others keep theirs
+    io.local.disconnectSockets(true);
   });
 
   io.on('connection', (socket) => limitEvents(socket, app));

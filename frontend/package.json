@@ -1,7 +1,8 @@
 {
   "name": "code-royale-frontend",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.8.0",
+  "author": "Eduardo Kairalla <eduardokairalla123@gmail.com>",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,7 +14,11 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
+    "canvas-confetti": "^1.9.4",
+    "monaco-editor": "0.56.0",
     "motion": "^13.4.3",
+    "radix-ui": "^1.6.7",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router": "^8.4.0",
@@ -24,6 +29,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
