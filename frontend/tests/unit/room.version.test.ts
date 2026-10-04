@@ -25,6 +25,7 @@ function room(code: string, version: number): Room {
     hostId: 'ana',
     players: [],
     round: null,
+    difficulties: ['easy', 'medium', 'hard'],
     version,
   };
 }

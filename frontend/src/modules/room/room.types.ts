@@ -79,6 +79,8 @@ export interface Room {
   hostId: string;
   players: Player[];
   round: Round | null;
+  // what the next rounds may draw, easiest first
+  difficulties: ChallengeDifficulty[];
   // bumped on every change; a lower one is a state that arrived late
   version: number;
 }

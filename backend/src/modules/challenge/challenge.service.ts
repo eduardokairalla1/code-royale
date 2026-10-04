@@ -3,7 +3,9 @@
  */
 
 // --- IMPORTS ---
+import { CHALLENGE_DIFFICULTIES } from './challenge.types.js';
 import type { Challenge } from './challenge.types.js';
+import type { ChallengeDifficulty } from './challenge.types.js';
 import { randomInt } from 'node:crypto';
 import { readdirSync } from 'node:fs';
 import { readFileSync } from 'node:fs';
@@ -22,7 +24,7 @@ const challengeSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
   description: z.string().min(1),
-  difficulty: z.enum(['easy', 'medium', 'hard']),
+  difficulty: z.enum(CHALLENGE_DIFFICULTIES),
   timeLimitSeconds: z.number().int().positive(),
   examples: z.array(caseSchema).min(1),
   tests: z.array(caseSchema).min(1),
@@ -106,20 +108,47 @@ export class ChallengeService {
   }
 
   /**
-   * Pick a random challenge, avoiding the ones already played.
+   * Tell whether any challenge has one of the difficulties.
+   *
+   * @param {ChallengeDifficulty[]} difficulties The difficulties wanted.
+   *
+   * @returns {boolean} True when at least one challenge matches.
+   */
+  hasAny(difficulties: ChallengeDifficulty[]): boolean {
+    return this.challenges.some(
+      (challenge) => difficulties.includes(challenge.difficulty),
+    );
+  }
+
+  /**
+   * Pick a random challenge of the difficulties, avoiding the ones already
+   * played.
    *
    * @param {string[]} playedIds Ids the room already played.
+   * @param {ChallengeDifficulty[]} difficulties The difficulties allowed.
    *
-   * @returns {Challenge} The picked challenge.
+   * @returns {Challenge | null} The picked challenge, null when none has
+   *                             the difficulties.
    */
-  pickRandom(playedIds: string[]): Challenge {
+  pickRandom(
+    playedIds: string[],
+    difficulties: ChallengeDifficulty[],
+  ): Challenge | null {
 
-    const unplayed = this.challenges.filter(
+    const allowed = this.challenges.filter(
+      (challenge) => difficulties.includes(challenge.difficulty),
+    );
+
+    const unplayed = allowed.filter(
       (challenge) => !playedIds.includes(challenge.id),
     );
 
-    // every challenge played: allow repeats
-    const pool = unplayed.length > 0 ? unplayed : this.challenges;
+    // every allowed challenge played: allow repeats
+    const pool = unplayed.length > 0 ? unplayed : allowed;
+
+    if (pool.length === 0) {
+      return null;
+    }
 
     return pool[randomInt(pool.length)] as Challenge;
   }

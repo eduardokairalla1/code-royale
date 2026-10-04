@@ -40,6 +40,7 @@ const ROOM: Room = {
       autoSubmitted: false,
     }],
   },
+  difficulties: ['easy', 'medium', 'hard'],
   version: 1,
 };
 

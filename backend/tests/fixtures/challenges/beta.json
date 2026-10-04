@@ -2,7 +2,7 @@
   "id": "beta",
   "title": "Sum beta",
   "description": "Read two integers and print their sum.",
-  "difficulty": "easy",
+  "difficulty": "medium",
   "timeLimitSeconds": 2,
   "examples": [
     { "input": "2 5", "output": "7" }

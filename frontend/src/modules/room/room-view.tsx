@@ -169,6 +169,9 @@ export function RoomView({
               onStart={async () => {
                 await connection.send('game:start');
               }}
+              onDifficulties={async (difficulties) => {
+                await connection.send('game:difficulties', { difficulties });
+              }}
             />
           )
           : (

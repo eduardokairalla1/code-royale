@@ -31,6 +31,7 @@ export function toPublicRoom(room: Room): PublicRoom {
       connected: player.socketId !== null,
     })),
     round: room.round ? toPublicRound(room.round) : null,
+    difficulties: room.difficulties,
     version: room.version,
   };
 }

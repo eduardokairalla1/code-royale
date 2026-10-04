@@ -11,10 +11,13 @@ import { releaseLock } from '../../shared/redis/lock.js';
 import type { RedisClient } from '../../shared/redis/redis.js';
 import type { Scheduler } from '../../shared/scheduler.js';
 import type { ChallengeService } from '../challenge/challenge.service.js';
+import { CHALLENGE_DIFFICULTIES } from '../challenge/challenge.types.js';
+import type { ChallengeDifficulty } from '../challenge/challenge.types.js';
 import type { RoomService } from '../room/room.service.js';
 import type { SubmissionService } from '../submission/submission.service.js';
 import { GameAlreadyStartedError } from './game.errors.js';
 import { GameNotFinishedError } from './game.errors.js';
+import { NoChallengesError } from './game.errors.js';
 import { createRound } from './game.utils.js';
 import { everyoneJudged } from './game.utils.js';
 import { roundSummary } from './game.utils.js';
@@ -86,6 +89,8 @@ export class GameService {
    *
    * @throws {NotHostError} When the player is not the host.
    * @throws {GameAlreadyStartedError} When the room is not in the lobby.
+   * @throws {NoChallengesError} When no challenge has the room's
+   *                             difficulties.
    */
   async start(code: string, playerId: string): Promise<void> {
 
@@ -101,7 +106,13 @@ export class GameService {
 
         const challenge = this.challengeService.pickRandom(
           room.playedChallengeIds,
+          room.difficulties,
         );
+
+        // the catalog changed since the host picked them
+        if (!challenge) {
+          throw new NoChallengesError({ difficulties: room.difficulties });
+        }
 
         // everyone in the room right now takes part
         room.round = createRound(challenge, [...room.players.keys()]);
@@ -126,6 +137,45 @@ export class GameService {
       difficulty: round.challenge.difficulty,
       players: round.results.size,
       time_limit_s: round.challenge.timeLimitSeconds,
+    });
+  }
+
+  /**
+   * Choose the difficulties the next rounds may draw.
+   *
+   * @param {string} code The room code.
+   * @param {string} playerId Who asked, must be the host.
+   * @param {ChallengeDifficulty[]} difficulties At least one difficulty.
+   *
+   * @returns {Promise<void>}
+   *
+   * @throws {NotHostError} When the player is not the host.
+   * @throws {GameAlreadyStartedError} When the room is not in the lobby.
+   * @throws {NoChallengesError} When no challenge has the difficulties.
+   */
+  async setDifficulties(
+    code: string,
+    playerId: string,
+    difficulties: ChallengeDifficulty[],
+  ): Promise<void> {
+
+    // no repeats, easiest first, whatever order they came in
+    const picked = CHALLENGE_DIFFICULTIES.filter(
+      (difficulty) => difficulties.includes(difficulty),
+    );
+
+    if (!this.challengeService.hasAny(picked)) {
+      throw new NoChallengesError({ difficulties: picked });
+    }
+
+    await this.roomService.mutateAsHost(code, playerId, (room) => {
+
+      // only from the lobby: a running round already has its challenge
+      if (room.status !== 'LOBBY') {
+        throw new GameAlreadyStartedError({ code, status: room.status });
+      }
+
+      room.difficulties = picked;
     });
   }
 

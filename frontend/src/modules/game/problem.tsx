@@ -4,16 +4,9 @@
 
 // --- IMPORTS ---
 import { Paper } from '../../components/paper/paper.tsx';
+import { DIFFICULTY_LABELS } from '../room/room.difficulties.ts';
 import type { Challenge } from '../room/room.types.ts';
-import type { ChallengeDifficulty } from '../room/room.types.ts';
 import styles from './problem.module.css';
-
-// --- GLOBALS ---
-const DIFFICULTY_LABELS: Record<ChallengeDifficulty, string> = {
-  easy: 'Easy',
-  medium: 'Medium',
-  hard: 'Hard',
-};
 
 // --- CODE ---
 /**

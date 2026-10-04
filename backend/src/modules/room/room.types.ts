@@ -3,6 +3,7 @@
  */
 
 // --- IMPORTS ---
+import type { ChallengeDifficulty } from '../challenge/challenge.types.js';
 import type { PublicRound } from '../game/game.types.js';
 import type { Round } from '../game/game.types.js';
 
@@ -33,6 +34,8 @@ export interface Room {
   players: Map<string, Player>;
   round: Round | null;
   playedChallengeIds: string[];
+  // what the next rounds may draw, set by the host in the lobby
+  difficulties: ChallengeDifficulty[];
   createdAt: number;
   version: number;
 }
@@ -56,5 +59,6 @@ export interface PublicRoom {
   hostId: string;
   players: PublicPlayer[];
   round: PublicRound | null;
+  difficulties: ChallengeDifficulty[];
   version: number;
 }

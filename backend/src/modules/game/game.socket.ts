@@ -1,12 +1,21 @@
 /**
- * Game socket handlers: start a round and go back to the lobby.
+ * Game socket handlers: difficulties, start and back to the lobby.
  */
 
 // --- IMPORTS ---
 import { runCommand } from '../../shared/socket-command.js';
+import { parseInput } from '../../shared/validation.js';
 import type { AppServer } from '../../socket.js';
+import { CHALLENGE_DIFFICULTIES } from '../challenge/challenge.types.js';
 import type { GameService } from './game.service.js';
 import type { FastifyBaseLogger } from 'fastify';
+import { z } from 'zod';
+
+// --- GLOBALS ---
+// the difficulties the next rounds may draw
+const difficultiesSchema = z.object({
+  difficulties: z.array(z.enum(CHALLENGE_DIFFICULTIES)).min(1).max(10),
+});
 
 // --- CODE ---
 /**
@@ -32,6 +41,14 @@ export function registerGameSocket(
     socket.on('game:start', (ack) => {
       void runCommand(socket, 'game:start', ack, logger, () => {
         return gameService.start(roomCode, playerId);
+      });
+    });
+
+    // host picks the difficulties, in the lobby
+    socket.on('game:difficulties', (payload, ack) => {
+      void runCommand(socket, 'game:difficulties', ack, logger, () => {
+        const { difficulties } = parseInput(difficultiesSchema, payload);
+        return gameService.setDifficulties(roomCode, playerId, difficulties);
       });
     });
 

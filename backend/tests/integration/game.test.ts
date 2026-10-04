@@ -61,6 +61,65 @@ describe('starting', () => {
   });
 });
 
+describe('difficulties', () => {
+
+  it('starts every room with every difficulty', async () => {
+    const { hostClient } = await roomWithTwo();
+
+    expect(hostClient.state?.difficulties)
+      .toEqual(['easy', 'medium', 'hard']);
+  });
+
+  it('lets the host pick them and draws only those', async () => {
+    const { hostClient, guestClient } = await roomWithTwo();
+
+    expect((await guestClient.emit('game:difficulties', {
+      difficulties: ['medium'],
+    })).error).toBe('not_host_error');
+
+    expect(await hostClient.emit('game:difficulties', {
+      difficulties: ['medium', 'easy', 'medium'],
+    })).toEqual({ ok: true });
+
+    // sent to everyone, easiest first, no repeats
+    await guestClient.waitFor((room) => {
+      return room.difficulties.join() === 'easy,medium';
+    });
+
+    await hostClient.emit('game:difficulties', { difficulties: ['medium'] });
+    await hostClient.emit('game:start');
+    const room = await guestClient.waitFor((r) => r.status === 'PLAYING');
+
+    expect(room.round?.challenge.id).toBe('beta');
+  });
+
+  it('refuses none, unknown ones and ones no challenge has', async () => {
+    const { hostClient } = await roomWithTwo();
+
+    for (const difficulties of [[], ['brutal'], 'easy']) {
+      expect((await hostClient.emit('game:difficulties', { difficulties }))
+        .error).toBe('request_validation_error');
+    }
+
+    expect((await hostClient.emit('game:difficulties', {
+      difficulties: ['hard'],
+    })).error).toBe('no_challenges_error');
+
+    expect(hostClient.state?.difficulties)
+      .toEqual(['easy', 'medium', 'hard']);
+  });
+
+  it('cannot change them mid round', async () => {
+    const { hostClient } = await roomWithTwo();
+
+    await hostClient.emit('game:start');
+
+    expect((await hostClient.emit('game:difficulties', {
+      difficulties: ['easy'],
+    })).error).toBe('game_already_started_error');
+  });
+});
+
 describe('late joiners', () => {
 
   it('can join mid round and wait for the next one', async () => {
