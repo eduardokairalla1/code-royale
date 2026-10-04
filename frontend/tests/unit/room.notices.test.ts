@@ -34,6 +34,7 @@ function roomWith(names: string[], hostId: string): Room {
     hostId,
     players,
     round: null,
+    difficulties: ['easy', 'medium', 'hard'],
     version: 1,
   };
 }
