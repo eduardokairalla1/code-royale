@@ -5,6 +5,8 @@
 A multiplayer coding game. I made it because my friends and I wanted a
 good coding game to play in our spare time.
 
+Play it at **[coderoyale.app](https://coderoyale.app)**.
+
 ## How it works
 
 ```
