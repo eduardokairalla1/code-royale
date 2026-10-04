@@ -1,0 +1,38 @@
+name: Challenge idea
+description: Suggest a problem for the catalog.
+labels: [challenge]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Want to write it yourself? A pull request with the json file is
+        even better, see CONTRIBUTING.md.
+  - type: input
+    id: title
+    attributes:
+      label: Title
+      placeholder: Word count
+    validations:
+      required: true
+  - type: dropdown
+    id: difficulty
+    attributes:
+      label: Difficulty
+      options:
+        - easy
+        - medium
+        - hard
+    validations:
+      required: true
+  - type: textarea
+    id: statement
+    attributes:
+      label: Statement
+      description: What the program reads, what it prints, and the limits.
+    validations:
+      required: true
+  - type: textarea
+    id: examples
+    attributes:
+      label: Examples
+      description: A few inputs with their expected outputs.
