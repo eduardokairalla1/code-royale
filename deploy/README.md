@@ -8,7 +8,8 @@ Every image is built from the source in this repo.
 
 Images built from `main` are also published on Docker Hub as
 `edu3983/code-royale:<service>-<version>-<commit>`, e.g.
-`backend-0.1.0-abc1234`.
+`backend-0.1.0-abc1234`, and as `<service>-latest`, which follows the last
+merge.
 
 ## Requirements
 

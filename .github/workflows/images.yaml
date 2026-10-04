@@ -1,5 +1,6 @@
 # --- Images ---
-# Builds every service's image; pushes <service>-<version>-<sha7> if asked.
+# Builds every service's image; pushes <service>-<version>-<sha7> and
+# <service>-latest if asked.
 name: images
 
 on:
@@ -44,7 +45,9 @@ jobs:
           context: ${{ matrix.service }}
           platforms: linux/amd64
           push: ${{ inputs.push }}
-          tags: edu3983/code-royale:${{ matrix.service }}-${{ steps.tag.outputs.tag }}
+          tags: |
+            edu3983/code-royale:${{ matrix.service }}-${{ steps.tag.outputs.tag }}
+            ${{ inputs.push && format('edu3983/code-royale:{0}-latest', matrix.service) || '' }}
           build-args: |
             VERSION=${{ steps.tag.outputs.version }}
             COMMIT=${{ steps.tag.outputs.commit }}
