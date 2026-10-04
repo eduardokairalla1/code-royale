@@ -1,6 +1,17 @@
 ![Code Royale](docs/banner.svg)
 
-# Code Royale
+[![CI](https://github.com/eduardokairalla1/code-royale/actions/workflows/release.yaml/badge.svg?branch=main)](https://github.com/eduardokairalla1/code-royale/actions/workflows/release.yaml)
+![TypeScript](https://img.shields.io/badge/TypeScript-Backend%20%2B%20Frontend-3178C6)
+![Node](https://img.shields.io/badge/Node-24-5FA04E)
+![React](https://img.shields.io/badge/React-19-61DAFB)
+![Vite](https://img.shields.io/badge/Vite-8-646CFF)
+![Fastify](https://img.shields.io/badge/Fastify-API-000000)
+![Socket.IO](https://img.shields.io/badge/Socket.IO-Realtime-010101)
+![Go](https://img.shields.io/badge/Go-1.27-00ADD8)
+![Redis](https://img.shields.io/badge/Redis-State-red)
+![Piston](https://img.shields.io/badge/Piston-Code%20Runner-orange)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED)
+[![License](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
 
 A multiplayer coding game. I made it because my friends and I wanted a
 good coding game to play in our spare time.
