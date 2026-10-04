@@ -59,5 +59,6 @@ export interface PublicRoom {
   hostId: string;
   players: PublicPlayer[];
   round: PublicRound | null;
+  difficulties: ChallengeDifficulty[];
   version: number;
 }

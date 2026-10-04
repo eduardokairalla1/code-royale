@@ -61,6 +61,16 @@ describe('starting', () => {
   });
 });
 
+describe('difficulties', () => {
+
+  it('starts every room with every difficulty', async () => {
+    const { hostClient } = await roomWithTwo();
+
+    expect(hostClient.state?.difficulties)
+      .toEqual(['easy', 'medium', 'hard']);
+  });
+});
+
 describe('late joiners', () => {
 
   it('can join mid round and wait for the next one', async () => {
