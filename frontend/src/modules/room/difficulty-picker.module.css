@@ -1,0 +1,84 @@
+.picker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.label {
+  font-family: var(--font-hand);
+  font-size: 21px;
+}
+
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+/* the problem's hand-inked tag, filled in when picked */
+.option {
+  padding: 2px var(--space-3);
+  font-family: var(--font-hand);
+  font-size: 19px;
+  color: var(--tag-color);
+  background: transparent;
+  border: var(--stroke) dashed var(--tag-color);
+  border-radius: 12px 8px 14px 9px;
+  cursor: pointer;
+  transition:
+    transform var(--duration-fast) var(--ease-bounce),
+    background var(--duration-fast);
+}
+
+.option:nth-child(odd) {
+  transform: rotate(-2deg);
+}
+
+.option:nth-child(even) {
+  transform: rotate(2deg);
+}
+
+.option[aria-pressed='true'] {
+  color: var(--ink);
+  background: var(--tag-color);
+  border-style: solid;
+  border-color: var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+
+.option:not(:disabled):hover {
+  transform: rotate(0deg) scale(1.06);
+}
+
+/* the guests' view, and the one the host cannot turn off */
+.option:disabled {
+  cursor: default;
+}
+
+.option[data-difficulty='easy'] {
+  --tag-color: var(--success);
+}
+
+.option[data-difficulty='medium'] {
+  --tag-color: var(--crown-dark);
+}
+
+.option[data-difficulty='hard'] {
+  --tag-color: var(--gem);
+}
+
+.error {
+  font-family: var(--font-hand);
+  font-size: 19px;
+  color: var(--danger);
+}

@@ -1,5 +1,5 @@
 /**
- * Lobby: share the code, watch players arrive, and let the host start.
+ * Lobby: share the code, watch players arrive, the host sets up and starts.
  */
 
 // --- IMPORTS ---
@@ -8,8 +8,10 @@ import { Button } from '../../components/button/button.tsx';
 import { Paper } from '../../components/paper/paper.tsx';
 import { describeUnknownError } from '../../shared/errors.ts';
 import { LanguagePicker } from '../language/language-picker.tsx';
+import { DifficultyPicker } from './difficulty-picker.tsx';
 import styles from './lobby.module.css';
 import { PlayerList } from './player-list.tsx';
+import type { ChallengeDifficulty } from './room.types.ts';
 import type { Room } from './room.types.ts';
 import { AnimatePresence } from 'motion/react';
 import { motion } from 'motion/react';
@@ -29,16 +31,19 @@ export interface LobbyProps {
   selfId: string;
   // asks the server to start a round
   onStart: () => Promise<void>;
+  // asks the server to draw only these difficulties
+  onDifficulties: (difficulties: ChallengeDifficulty[]) => Promise<void>;
 }
 
 /**
  * Render the lobby of a room.
  *
- * @param {LobbyProps} props The room, who is looking and the start command.
+ * @param {LobbyProps} props The room, who is looking and the host's
+ *                           commands.
  *
  * @returns {JSX.Element} The lobby.
  */
-export function Lobby({ room, selfId, onStart }: LobbyProps) {
+export function Lobby({ room, selfId, onStart, onDifficulties }: LobbyProps) {
 
   const isHost = room.hostId === selfId;
   const [starting, setStarting] = useState(false);
@@ -75,6 +80,12 @@ export function Lobby({ room, selfId, onStart }: LobbyProps) {
         </h2>
         <PlayerList players={room.players} selfId={selfId} />
       </Paper>
+
+      <DifficultyPicker
+        difficulties={room.difficulties}
+        editable={isHost}
+        onChange={onDifficulties}
+      />
 
       <LanguagePicker />
 

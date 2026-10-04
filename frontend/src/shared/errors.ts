@@ -11,6 +11,7 @@ const MESSAGES: Record<string, string> = {
   not_host_error: 'Only the host can do that.',
   game_already_started_error: 'The match has already started.',
   game_not_finished_error: 'The round is not over yet.',
+  no_challenges_error: 'No challenge has those difficulties.',
   round_not_running_error: 'There is no round in progress.',
   not_in_round_error: 'You join the next round.',
   already_submitted_error: 'You already submitted this round.',
