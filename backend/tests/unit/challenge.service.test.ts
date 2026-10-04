@@ -105,5 +105,7 @@ describe('ChallengeService.pickRandom', () => {
 
   it('finds nothing for a difficulty no challenge has', () => {
     expect(service.pickRandom([], ['hard'])).toBeNull();
+    expect(service.hasAny(['hard'])).toBe(false);
+    expect(service.hasAny(['hard', 'easy'])).toBe(true);
   });
 });

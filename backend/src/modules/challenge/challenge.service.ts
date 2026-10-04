@@ -108,6 +108,19 @@ export class ChallengeService {
   }
 
   /**
+   * Tell whether any challenge has one of the difficulties.
+   *
+   * @param {ChallengeDifficulty[]} difficulties The difficulties wanted.
+   *
+   * @returns {boolean} True when at least one challenge matches.
+   */
+  hasAny(difficulties: ChallengeDifficulty[]): boolean {
+    return this.challenges.some(
+      (challenge) => difficulties.includes(challenge.difficulty),
+    );
+  }
+
+  /**
    * Pick a random challenge of the difficulties, avoiding the ones already
    * played.
    *
