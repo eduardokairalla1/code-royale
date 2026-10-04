@@ -1,0 +1,50 @@
+.logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.crown {
+  display: block;
+  cursor: grab;
+  filter: drop-shadow(4px 4px 0 var(--ink));
+}
+
+.name {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0 0.3em;
+  line-height: 1;
+  color: var(--crown);
+  -webkit-text-stroke: 2px var(--ink);
+  paint-order: stroke fill;
+  text-shadow: 4px 4px 0 var(--ink);
+}
+
+.word {
+  display: inline-flex;
+}
+
+.letter {
+  display: inline-block;
+}
+
+.lg .crown {
+  width: 128px;
+}
+
+.lg .name {
+  font-size: clamp(44px, 11vw, 76px);
+}
+
+.sm .crown {
+  width: 44px;
+}
+
+.sm .name {
+  font-size: 28px;
+  -webkit-text-stroke-width: 1.5px;
+  text-shadow: 2px 2px 0 var(--ink);
+}
