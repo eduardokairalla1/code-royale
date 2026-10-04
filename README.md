@@ -123,7 +123,7 @@ cd frontend && npm test
 cd lsp && go test ./...
 ```
 
-CI runs them on every push and pull request.
+CI runs them on every pull request and again on every merge to `main`.
 
 ## License
 
