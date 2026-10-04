@@ -40,7 +40,11 @@ describe('config', () => {
   it('falls back to the page\'s own origin', async () => {
     const config = await loadConfig({});
 
-    expect(config).toEqual({ apiUrl: '/api' });
+    expect(config).toEqual({
+      apiUrl: '/api',
+      socketOrigin: undefined,
+      socketPath: '/api/socket',
+    });
   });
 
   it('treats empty vars as unset, as a left out build arg', async () => {
@@ -54,7 +58,11 @@ describe('config', () => {
       VITE_API_URL: 'http://localhost:3000/',
     });
 
-    expect(config).toEqual({ apiUrl: 'http://localhost:3000/api' });
+    expect(config).toEqual({
+      apiUrl: 'http://localhost:3000/api',
+      socketOrigin: 'http://localhost:3000',
+      socketPath: '/api/socket',
+    });
   });
 
   it('refuses a value that is not a url', async () => {

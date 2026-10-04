@@ -6,6 +6,7 @@
 import { Button } from './components/button/button.tsx';
 import { Notice } from './components/notice/notice.tsx';
 import { HomePage } from './modules/home/home.page.tsx';
+import { RoomPage } from './modules/room/room.page.tsx';
 import { BrowserRouter } from 'react-router';
 import { Route } from 'react-router';
 import { Routes } from 'react-router';
@@ -23,6 +24,7 @@ export function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/game/:code" element={<RoomPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
