@@ -62,6 +62,22 @@ browser ──http, Socket.IO──▶ backend ──▶ Piston (runs the code)
 
 Player code runs in [Piston](https://github.com/engineer-man/piston), self hosted.
 
+## Tech stack
+
+| Layer | Technology |
+|---|---|
+| **Languages** | TypeScript (backend, frontend), Go (lsp) |
+| **Frontend** | React 19 + Vite, React Router |
+| **Editor** | Monaco, with autocomplete over the Language Server Protocol |
+| **Look** | Rough.js and Rough Notation (hand-drawn), Motion, Radix UI |
+| **Backend** | Node 24, Fastify |
+| **Realtime** | Socket.IO, with the Redis adapter across instances |
+| **State** | Redis: rooms, rounds, timers, locks |
+| **Code runner** | Piston, self hosted |
+| **Language servers** | pyright, typescript-language-server, gopls, clangd, rust-analyzer, jdtls |
+| **Containers** | Docker Compose, nginx for the frontend |
+| **CI** | GitHub Actions, images on Docker Hub |
+
 ## Running it
 
 You need Docker with Compose v2 and about 12 GB of disk.
