@@ -1,7 +1,7 @@
 {
   "name": "code-royale-frontend",
   "private": true,
-  "version": "0.9.0",
+  "version": "0.9.1",
   "author": "Eduardo Kairalla <eduardokairalla123@gmail.com>",
   "type": "module",
   "scripts": {
