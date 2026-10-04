@@ -15,6 +15,7 @@ import type { RoomService } from '../room/room.service.js';
 import type { SubmissionService } from '../submission/submission.service.js';
 import { GameAlreadyStartedError } from './game.errors.js';
 import { GameNotFinishedError } from './game.errors.js';
+import { NoChallengesError } from './game.errors.js';
 import { createRound } from './game.utils.js';
 import { everyoneJudged } from './game.utils.js';
 import { roundSummary } from './game.utils.js';
@@ -86,6 +87,8 @@ export class GameService {
    *
    * @throws {NotHostError} When the player is not the host.
    * @throws {GameAlreadyStartedError} When the room is not in the lobby.
+   * @throws {NoChallengesError} When no challenge has the room's
+   *                             difficulties.
    */
   async start(code: string, playerId: string): Promise<void> {
 
@@ -101,7 +104,13 @@ export class GameService {
 
         const challenge = this.challengeService.pickRandom(
           room.playedChallengeIds,
+          room.difficulties,
         );
+
+        // the catalog changed since the host picked them
+        if (!challenge) {
+          throw new NoChallengesError({ difficulties: room.difficulties });
+        }
 
         // everyone in the room right now takes part
         room.round = createRound(challenge, [...room.players.keys()]);

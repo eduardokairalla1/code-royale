@@ -5,6 +5,7 @@
 // --- IMPORTS ---
 import { CHALLENGE_DIFFICULTIES } from './challenge.types.js';
 import type { Challenge } from './challenge.types.js';
+import type { ChallengeDifficulty } from './challenge.types.js';
 import { randomInt } from 'node:crypto';
 import { readdirSync } from 'node:fs';
 import { readFileSync } from 'node:fs';
@@ -107,20 +108,34 @@ export class ChallengeService {
   }
 
   /**
-   * Pick a random challenge, avoiding the ones already played.
+   * Pick a random challenge of the difficulties, avoiding the ones already
+   * played.
    *
    * @param {string[]} playedIds Ids the room already played.
+   * @param {ChallengeDifficulty[]} difficulties The difficulties allowed.
    *
-   * @returns {Challenge} The picked challenge.
+   * @returns {Challenge | null} The picked challenge, null when none has
+   *                             the difficulties.
    */
-  pickRandom(playedIds: string[]): Challenge {
+  pickRandom(
+    playedIds: string[],
+    difficulties: ChallengeDifficulty[],
+  ): Challenge | null {
 
-    const unplayed = this.challenges.filter(
+    const allowed = this.challenges.filter(
+      (challenge) => difficulties.includes(challenge.difficulty),
+    );
+
+    const unplayed = allowed.filter(
       (challenge) => !playedIds.includes(challenge.id),
     );
 
-    // every challenge played: allow repeats
-    const pool = unplayed.length > 0 ? unplayed : this.challenges;
+    // every allowed challenge played: allow repeats
+    const pool = unplayed.length > 0 ? unplayed : allowed;
+
+    if (pool.length === 0) {
+      return null;
+    }
 
     return pool[randomInt(pool.length)] as Challenge;
   }

@@ -6,6 +6,9 @@
 import {
   ChallengeService,
 } from '../../src/modules/challenge/challenge.service.js';
+import type {
+  ChallengeDifficulty,
+} from '../../src/modules/challenge/challenge.types.js';
 import { mkdtempSync } from 'node:fs';
 import { writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -76,16 +79,31 @@ describe('ChallengeService.load', () => {
 describe('ChallengeService.pickRandom', () => {
 
   const service = ChallengeService.load(FIXTURES);
+  const every: ChallengeDifficulty[] = ['easy', 'medium', 'hard'];
 
   it('avoids the challenges already played', () => {
     for (let i = 0; i < 20; i++) {
-      expect(service.pickRandom(['alpha']).id).toBe('beta');
+      expect(service.pickRandom(['alpha'], every)?.id).toBe('beta');
     }
   });
 
   it('repeats once every challenge was played', () => {
     expect(['alpha', 'beta']).toContain(
-      service.pickRandom(['alpha', 'beta']).id,
+      service.pickRandom(['alpha', 'beta'], every)?.id,
     );
+  });
+
+  it('draws only the difficulties asked for', () => {
+    for (let i = 0; i < 20; i++) {
+      expect(service.pickRandom([], ['medium'])?.id).toBe('beta');
+    }
+  });
+
+  it('repeats within the difficulties once they were all played', () => {
+    expect(service.pickRandom(['alpha'], ['easy'])?.id).toBe('alpha');
+  });
+
+  it('finds nothing for a difficulty no challenge has', () => {
+    expect(service.pickRandom([], ['hard'])).toBeNull();
   });
 });

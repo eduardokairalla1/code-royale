@@ -16,6 +16,15 @@ export class GameAlreadyStartedError extends AppError {
 }
 
 /**
+ * Raised when no challenge has the difficulties the host picked.
+ */
+export class NoChallengesError extends AppError {
+  static override readonly MESSAGE = 'No challenge has those difficulties!';
+  static override readonly STATUS_CODE = 409;
+  static override readonly LOG_LEVEL = 'warn';
+}
+
+/**
  * Raised when going back to the lobby before the round is over.
  */
 export class GameNotFinishedError extends AppError {

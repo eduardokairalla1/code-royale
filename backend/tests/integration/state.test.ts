@@ -6,6 +6,9 @@
 import {
   ChallengeService,
 } from '../../src/modules/challenge/challenge.service.js';
+import type {
+  Challenge,
+} from '../../src/modules/challenge/challenge.types.js';
 import { RoomStore } from '../../src/modules/room/room.store.js';
 import type { Room } from '../../src/modules/room/room.types.js';
 import { createPlayer } from '../../src/modules/room/room.utils.js';
@@ -142,7 +145,7 @@ describe('room store', () => {
   it('keeps a round across the round trip, its challenge by id', async () => {
     const store = new RoomStore(redis, (id) => challenges.find(id));
     const room = lobby('CCCCC');
-    const challenge = challenges.pickRandom([]);
+    const challenge = challenges.find('alpha') as Challenge;
     const hostId = room.hostId;
 
     room.status = 'PLAYING';
