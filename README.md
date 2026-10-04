@@ -128,7 +128,8 @@ CI runs them on every pull request and again on every merge to `main`.
 ## Contributing
 
 New challenges, fixes and ideas are welcome. Start with
-[CONTRIBUTING.md](CONTRIBUTING.md).
+[CONTRIBUTING.md](CONTRIBUTING.md); to report a vulnerability, see
+[SECURITY.md](SECURITY.md).
 
 ## License
 
