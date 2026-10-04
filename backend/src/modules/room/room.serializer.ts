@@ -3,7 +3,9 @@
  */
 
 // --- IMPORTS ---
+import { CHALLENGE_DIFFICULTIES } from '../challenge/challenge.types.js';
 import type { Challenge } from '../challenge/challenge.types.js';
+import type { ChallengeDifficulty } from '../challenge/challenge.types.js';
 import type { Draft } from '../game/game.types.js';
 import type { PlayerResult } from '../game/game.types.js';
 import type { Player } from './room.types.js';
@@ -38,6 +40,8 @@ interface StoredRoom {
   players: Player[];
   round: StoredRound | null;
   playedChallengeIds: string[];
+  // missing on rooms stored before the filter existed
+  difficulties?: ChallengeDifficulty[];
   createdAt: number;
   version: number;
 }
@@ -66,6 +70,7 @@ export function serializeRoom(room: Room): string {
       submissions: [...round.submissions.entries()],
     },
     playedChallengeIds: room.playedChallengeIds,
+    difficulties: room.difficulties,
     createdAt: room.createdAt,
     version: room.version,
   };
@@ -112,6 +117,7 @@ export function parseRoom(json: string, findChallenge: ChallengeLookup): Room {
       submissions: new Map(round.submissions),
     },
     playedChallengeIds: stored.playedChallengeIds,
+    difficulties: stored.difficulties ?? [...CHALLENGE_DIFFICULTIES],
     createdAt: stored.createdAt,
     version: stored.version,
   };

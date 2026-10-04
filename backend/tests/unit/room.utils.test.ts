@@ -31,6 +31,7 @@ function roomWith(players: Player[]): Room {
     players: new Map(players.map((player) => [player.id, player])),
     round: null,
     playedChallengeIds: [],
+    difficulties: ['easy', 'medium', 'hard'],
     createdAt: 0,
     version: 0,
   };

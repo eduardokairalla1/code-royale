@@ -9,6 +9,15 @@
 export type ChallengeDifficulty = 'easy' | 'medium' | 'hard';
 
 /**
+ * Every difficulty, from easiest to hardest.
+ */
+export const CHALLENGE_DIFFICULTIES: readonly ChallengeDifficulty[] = [
+  'easy',
+  'medium',
+  'hard',
+];
+
+/**
  * An input and the output expected for it.
  */
 export interface ChallengeCase {

@@ -3,6 +3,7 @@
  */
 
 // --- IMPORTS ---
+import { CHALLENGE_DIFFICULTIES } from './challenge.types.js';
 import type { Challenge } from './challenge.types.js';
 import { randomInt } from 'node:crypto';
 import { readdirSync } from 'node:fs';
@@ -22,7 +23,7 @@ const challengeSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
   description: z.string().min(1),
-  difficulty: z.enum(['easy', 'medium', 'hard']),
+  difficulty: z.enum(CHALLENGE_DIFFICULTIES),
   timeLimitSeconds: z.number().int().positive(),
   examples: z.array(caseSchema).min(1),
   tests: z.array(caseSchema).min(1),

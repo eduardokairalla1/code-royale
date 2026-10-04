@@ -82,6 +82,7 @@ function lobby(code: string): Room {
     players: new Map([[host.id, host]]),
     round: null,
     playedChallengeIds: [],
+    difficulties: ['easy', 'medium', 'hard'],
     createdAt: Date.now(),
     version: 0,
   };
@@ -161,6 +162,16 @@ describe('room store', () => {
     await store.create(room);
 
     expect(await store.get('CCCCC')).toEqual(room);
+  });
+
+  it('lets rooms stored before the filter draw any difficulty', async () => {
+    const store = new RoomStore(redis, (id) => challenges.find(id));
+    const { difficulties: _, ...old } = lobby('DDDDD');
+
+    await redis.set('room:DDDDD', JSON.stringify({ ...old, players: [] }));
+
+    expect((await store.get('DDDDD'))?.difficulties)
+      .toEqual(['easy', 'medium', 'hard']);
   });
 });
 

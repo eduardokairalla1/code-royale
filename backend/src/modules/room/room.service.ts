@@ -8,6 +8,7 @@ import { tokensMatch } from '../../shared/ids.js';
 import { Event } from '../../shared/logging/events.js';
 import { log } from '../../shared/logging/events.js';
 import type { Scheduler } from '../../shared/scheduler.js';
+import { CHALLENGE_DIFFICULTIES } from '../challenge/challenge.types.js';
 import { InvalidPlayerTokenError } from './room.errors.js';
 import { NotHostError } from './room.errors.js';
 import { RoomCodeGenerationError } from './room.errors.js';
@@ -599,6 +600,7 @@ export class RoomService {
         players: new Map([[host.id, host]]),
         round: null,
         playedChallengeIds: [],
+        difficulties: [...CHALLENGE_DIFFICULTIES],
         createdAt: Date.now(),
         version: 0,
       };
