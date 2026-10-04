@@ -1,0 +1,40 @@
+# Code Royale
+
+> A free, open source multiplayer coding game. Friends join a room, get the
+> same challenge and the same clock, and the most hidden tests passed wins.
+
+Code Royale is played at https://coderoyale.app, in the browser, with no
+account. It was made by Eduardo Kairalla to play with friends in spare time.
+
+## How a match works
+
+- One player creates a room and shares its code or link.
+- The host picks the difficulties (easy, medium, hard or any mix) and starts
+  the round.
+- Everyone gets the same challenge and the same time limit.
+- Players write a solution in Python, JavaScript, TypeScript, Go, Java, C,
+  C++ or Rust, with autocomplete, and can run it against the public examples
+  as often as they like.
+- Each player submits once, against hidden tests. When time runs out, what is
+  in the editor is submitted automatically.
+- The most tests passed wins; the fastest submission breaks ties. After the
+  round, everyone can read everyone's code.
+
+## Project
+
+- [Source code](https://github.com/eduardokairalla1/code-royale): MIT
+  licensed; frontend in React and TypeScript, backend in Node with Fastify
+  and Socket.IO, a Go service for language servers, Redis for state, and
+  Piston to run player code.
+- [README](https://github.com/eduardokairalla1/code-royale/blob/main/README.md):
+  how it works and how to run it with Docker Compose.
+- [Contributing](https://github.com/eduardokairalla1/code-royale/blob/main/CONTRIBUTING.md):
+  how to add a challenge or send a fix.
+- [Security](https://github.com/eduardokairalla1/code-royale/blob/main/SECURITY.md):
+  how to report a vulnerability.
+
+## Notes
+
+- Rooms live at /game/<code>. They are private, temporary, and not meant to
+  be indexed.
+- There are no accounts, ads or payments.
